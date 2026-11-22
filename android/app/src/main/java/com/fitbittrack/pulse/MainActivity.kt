@@ -1,7 +1,6 @@
 package com.fitbittrack.pulse
 
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -11,6 +10,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitbittrack.pulse.ui.navigation.PulseApp
 import com.fitbittrack.pulse.ui.theme.PulseTheme
@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
                 val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
                 else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-                window.setBackgroundDrawable(ColorDrawable(if (dark) 0xFF0B1018.toInt() else 0xFFF4F6FA.toInt()))
+                window.setBackgroundDrawable((if (dark) 0xFF0B1018.toInt() else 0xFFF4F6FA.toInt()).toDrawable())
                 onDispose {}
             }
             PulseTheme(mode = state.themeMode) {

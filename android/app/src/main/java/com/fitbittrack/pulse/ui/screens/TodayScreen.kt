@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -41,7 +42,6 @@ import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -66,7 +66,8 @@ fun TodayScreen(
         PulsePage(contentPadding) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    MetricLabel(today.date.format(DateTimeFormatter.ofPattern("EEE · d MMM", Locale.getDefault())), MaterialTheme.colorScheme.onSurfaceVariant)
+                    val locale = LocalConfiguration.current.locales[0]
+                    MetricLabel(today.date.format(DateTimeFormatter.ofPattern("EEE · d MMM", locale)), MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Today", style = MaterialTheme.typography.headlineMedium)
                 }
                 SyncChip(sync, onOpenSettings)

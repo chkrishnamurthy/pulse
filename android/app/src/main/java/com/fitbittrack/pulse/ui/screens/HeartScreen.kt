@@ -108,7 +108,7 @@ fun HeartScreen(
     }
 }
 
-private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val shortDate: DateTimeFormatter get() = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
 
 private fun headline(h: HeartUi): String = when {
     h.restingDeltaVsNormal == null -> "Heart"

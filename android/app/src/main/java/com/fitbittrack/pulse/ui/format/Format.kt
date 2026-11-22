@@ -12,11 +12,12 @@ import kotlin.math.roundToInt
 /** Plain-English number formatting used on every screen. Missing data shows as a dash. */
 object Fmt {
     const val NONE = "–"
-    private val grouped = NumberFormat.getIntegerInstance(Locale.getDefault())
-    private val time = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+    // Built per call (not cached) so a language change while the app runs is picked up.
+    private fun grouped() = NumberFormat.getIntegerInstance(Locale.getDefault())
+    private fun time() = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
 
-    fun count(v: Long?): String = v?.let { grouped.format(it) } ?: NONE
-    fun count(v: Int?): String = v?.let { grouped.format(it) } ?: NONE
+    fun count(v: Long?): String = v?.let { grouped().format(it) } ?: NONE
+    fun count(v: Int?): String = v?.let { grouped().format(it) } ?: NONE
 
     fun minutes(total: Int?): String {
         if (total == null) return NONE
@@ -37,7 +38,7 @@ object Fmt {
     fun signedTemp(deltaC: Double?): String =
         deltaC?.let { (if (it >= 0) "+" else "−") + "%.1f°".format(kotlin.math.abs(it)) } ?: NONE
 
-    fun clock(t: LocalTime?): String = t?.format(time)?.lowercase() ?: NONE
+    fun clock(t: LocalTime?): String = t?.format(time())?.lowercase() ?: NONE
 
     /** "just now", "12 min ago", "3 h ago", "2 days ago". */
     fun ago(instant: Instant?, now: Instant = Instant.now()): String {

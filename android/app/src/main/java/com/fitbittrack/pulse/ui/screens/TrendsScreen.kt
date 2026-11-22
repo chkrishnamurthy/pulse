@@ -118,8 +118,8 @@ fun TrendsScreen(
     }
 }
 
-private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-private val dayDate = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
+private val shortDate: DateTimeFormatter get() = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val dayDate: DateTimeFormatter get() = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
 
 private fun labelFor(d: DayStat, range: ReportRange): String = when (range) {
     ReportRange.Week -> d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault())
