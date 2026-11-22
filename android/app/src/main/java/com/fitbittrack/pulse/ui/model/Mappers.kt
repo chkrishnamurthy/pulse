@@ -124,7 +124,8 @@ object Mappers {
     fun sleep(sessions: List<SleepSession>, summaries: List<DaySummary>, goals: Goals): SleepUi {
         val main = sessions.filter { it.isMainSleep }
         val last = main.lastOrNull()
-        val wakeDay = last?.end?.atZone(zone)?.toLocalDate()
+        // Google's own civil wake date when the data layer has it; device time zone otherwise.
+        val wakeDay = last?.wakeDate ?: last?.end?.atZone(zone)?.toLocalDate()
         val body = summaries.firstOrNull { it.date == wakeDay }
         val start = last?.start
         val blocks = if (last == null || start == null) emptyList() else last.stages.mapNotNull { st ->
@@ -209,7 +210,7 @@ object Mappers {
 
     /** Joins day summaries with the sleep that ended on each day. */
     fun dayStats(summaries: List<DaySummary>, sleeps: List<SleepSession>): List<DayStat> {
-        val sleepByWakeDay = sleeps.filter { it.isMainSleep }.associateBy { it.end.atZone(zone).toLocalDate() }
+        val sleepByWakeDay = sleeps.filter { it.isMainSleep }.associateBy { it.wakeDate ?: it.end.atZone(zone).toLocalDate() }
         val dates = (summaries.map { it.date } + sleepByWakeDay.keys).toSortedSet()
         val byDate = summaries.associateBy { it.date }
         return dates.map { d ->
@@ -218,12 +219,14 @@ object Mappers {
         }
     }
 
-    fun sync(s: SyncStatus): SyncUi = SyncUi(
+    fun sync(s: SyncStatus, isSample: Boolean = false, now: Instant = Instant.now()): SyncUi = SyncUi(
         running = s.state is SyncState.Running,
         progressLabel = (s.state as? SyncState.Running)?.let { r -> r.progress?.let { "${r.label} · ${(it * 100).roundToInt()}%" } ?: r.label },
         error = (s.state as? SyncState.Failed)?.message,
         needsSignIn = (s.state as? SyncState.Failed)?.needsSignIn == true,
-        lastSuccessLabel = if (s.lastSuccess == null) "Not synced yet" else "Synced ${Fmt.ago(s.lastSuccess)}",
-        lastTrackerLabel = if (s.lastTrackerSync == null) "unknown" else Fmt.ago(s.lastTrackerSync),
+        lastSuccessLabel = if (s.lastSuccess == null) "Not synced yet" else "Synced ${Fmt.ago(s.lastSuccess, now)}",
+        lastTrackerLabel = if (s.lastTrackerSync == null) "unknown" else Fmt.ago(s.lastTrackerSync, now),
+        firstSyncPending = !isSample && s.lastSuccess == null,
+        progress = (s.state as? SyncState.Running)?.progress,
     )
 }

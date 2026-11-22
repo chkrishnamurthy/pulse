@@ -79,14 +79,3 @@ fun StatusPill(text: String, dot: Color, container: Color) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = dot)
     }
 }
-
-/** Used by screens that are planned for a later phase. */
-@Composable
-fun ComingSoon(phase: String, items: List<String>) {
-    PulseCard {
-        Text("Coming in $phase", style = MaterialTheme.typography.titleMedium)
-        items.forEach {
-            Text("• $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}

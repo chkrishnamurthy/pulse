@@ -19,6 +19,7 @@ import com.fitbittrack.pulse.ui.components.Segmented
 import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.model.DayStat
 import com.fitbittrack.pulse.ui.model.ReportRange
+import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.reports.Report
 import com.fitbittrack.pulse.ui.reports.Reports
 import com.fitbittrack.pulse.ui.theme.PulseTheme
@@ -32,6 +33,7 @@ fun TrendsScreen(
     days: List<DayStat>,
     stepGoal: Int,
     sleepGoalMinutes: Int,
+    units: Units,
     isSample: Boolean,
     contentPadding: PaddingValues,
     onRangeChange: (ReportRange) -> Unit,
@@ -101,21 +103,23 @@ fun TrendsScreen(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricTile("Best day", c.moveLabel, report.bestStepsDay?.date?.dayOfWeek?.getDisplayName(TextStyle.SHORT, Locale.getDefault()) ?: Fmt.NONE, null, Modifier.weight(1f)) {
+            MetricTile("Best day", c.moveLabel, report.bestStepsDay?.date?.format(dayDate) ?: Fmt.NONE, null, Modifier.weight(1f)) {
                 Text("${Fmt.count(report.bestStepsDay?.steps)} steps", style = MaterialTheme.typography.bodyMedium, color = muted)
             }
-            MetricTile("Longest sleep", c.sleepLabel, report.longestSleepDay?.date?.dayOfWeek?.getDisplayName(TextStyle.SHORT, Locale.getDefault()) ?: Fmt.NONE, null, Modifier.weight(1f)) {
+            MetricTile("Longest sleep", c.sleepLabel, report.longestSleepDay?.date?.format(dayDate) ?: Fmt.NONE, null, Modifier.weight(1f)) {
                 Text(Fmt.minutes(report.longestSleepDay?.sleepMinutes), style = MaterialTheme.typography.bodyMedium, color = muted)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricTile("Zone minutes", c.moveLabel, Fmt.count(report.totalZoneMinutes), "total", Modifier.weight(1f))
-            MetricTile("Distance", c.moveLabel, "%.1f".format((report.totalDistanceMeters ?: 0.0) / 1000), "km", Modifier.weight(1f))
+            val (dist, unit) = Fmt.distance(report.totalDistanceMeters, units)
+            MetricTile("Distance", c.moveLabel, dist, unit, Modifier.weight(1f))
         }
     }
 }
 
 private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val dayDate = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
 
 private fun labelFor(d: DayStat, range: ReportRange): String = when (range) {
     ReportRange.Week -> d.date.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault())

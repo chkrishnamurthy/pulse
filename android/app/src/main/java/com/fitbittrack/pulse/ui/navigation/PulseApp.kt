@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,7 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -51,13 +52,20 @@ private data class Tab(val route: Any, val type: KClass<*>, val label: String, v
 
 @Composable
 fun PulseApp(state: UiState, viewModel: MainViewModel) {
+    // Wait until we know whether an account was connected before, so Connect never flashes.
+    if (state.auth is AuthState.Checking) {
+        Loading(PaddingValues())
+        return
+    }
+
     val nav = rememberNavController()
     val context = LocalContext.current
     val dash: DashboardViewModel = viewModel()
+    val signedIn = state.auth is AuthState.SignedIn
 
-    // Real data after sign-in; sample data otherwise.
-    LaunchedEffect(state.auth is AuthState.SignedIn) {
-        dash.useRepository(if (state.auth is AuthState.SignedIn) DataLayerBridge.realRepository(context) else null)
+    // Real (cached) data whenever an account is connected, even offline; sample data otherwise.
+    LaunchedEffect(signedIn) {
+        dash.useRepository(if (signedIn) DataLayerBridge.realRepository(context) else null)
     }
 
     // Google's consent screen: launched once whenever the view model asks for it.
@@ -96,8 +104,9 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                // Today is the home of the back stack: Back from any tab returns to Today, then exits.
                                 nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                    popUpTo<TodayRoute> { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -117,15 +126,15 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             }
         },
     ) { padding ->
-        // Always start on Connect. Once Google has granted access, sign-in is silent and Connect passes straight through.
-        NavHost(navController = nav, startDestination = ConnectRoute) {
+        // Connected before → start on Today (cached data, works offline). Otherwise → Connect.
+        NavHost(navController = nav, startDestination = if (signedIn) TodayRoute else ConnectRoute) {
             composable<ConnectRoute> {
                 ConnectScreen(
                     auth = state.auth,
                     contentPadding = padding,
                     onConnect = viewModel::connect,
-                    onContinue = { nav.navigate(TodayRoute) { popUpTo<ConnectRoute> { inclusive = true } } },
-                    onExploreSample = { nav.navigate(TodayRoute) },
+                    onContinue = { nav.goHome() },
+                    onExploreSample = { nav.goHome() },
                 )
             }
             composable<TodayRoute> {
@@ -134,11 +143,12 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                     TodayScreen(
                         today = it, prefs = state.prefs, sync = sync, isSample = isSample, contentPadding = padding,
                         onRefresh = dash::refresh,
+                        onConnect = viewModel::connect,
                         onOpenSettings = { nav.navigate(SettingsRoute) },
                         onOpenGoals = { nav.navigate(GoalsRoute) },
-                        onOpenHeart = { nav.navigate(HeartRoute) },
-                        onOpenSleep = { nav.navigate(SleepRoute) },
-                        onOpenActivity = { nav.navigate(ActivityRoute) },
+                        onOpenHeart = { nav.navigate(HeartRoute) { popUpTo<TodayRoute>(); launchSingleTop = true } },
+                        onOpenSleep = { nav.navigate(SleepRoute) { popUpTo<TodayRoute>(); launchSingleTop = true } },
+                        onOpenActivity = { nav.navigate(ActivityRoute) { popUpTo<TodayRoute>(); launchSingleTop = true } },
                     )
                 } ?: Loading(padding)
             }
@@ -157,7 +167,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             composable<TrendsRoute> {
                 val range by dash.reportRangeState.collectAsStateWithLifecycle()
                 val days by dash.reportDays.collectAsStateWithLifecycle()
-                TrendsScreen(range, days, goals.dailySteps, goals.sleepMinutes, isSample, padding, dash::setReportRange)
+                TrendsScreen(range, days, goals.dailySteps, goals.sleepMinutes, state.prefs.units, isSample, padding, dash::setReportRange)
             }
             composable<GoalsRoute> {
                 GoalsScreen(
@@ -169,16 +179,17 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             }
             composable<SettingsRoute> {
                 SettingsScreen(
-                    auth = state.auth, themeMode = state.themeMode, sync = sync, contentPadding = padding,
+                    state = state, sync = sync, isSample = isSample, contentPadding = padding,
                     onBack = { nav.popBackStack() },
                     onThemeChange = { viewModel.setTheme(it) },
                     onSyncNow = dash::refresh,
-                    onSignInAgain = viewModel::connect,
+                    onConnect = viewModel::connect,
+                    onRetryTest = viewModel::retryConnectionTest,
                     onDeleteData = dash::deleteLocalData,
                     onSignOut = {
-                        dash.deleteLocalData()
-                        viewModel.signOut()
-                        nav.navigate(ConnectRoute) { popUpTo(0) }
+                        viewModel.signOut {
+                            nav.navigate(ConnectRoute) { popUpTo(0) { inclusive = true } }
+                        }
                     },
                 )
             }
@@ -186,7 +197,13 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
     }
 }
 
+/** Go to Today and remove Connect from the back stack. */
+private fun NavHostController.goHome() = navigate(TodayRoute) {
+    popUpTo<ConnectRoute> { inclusive = true }
+    launchSingleTop = true
+}
+
 @Composable
-private fun Loading(padding: androidx.compose.foundation.layout.PaddingValues) {
+private fun Loading(padding: PaddingValues) {
     Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 }

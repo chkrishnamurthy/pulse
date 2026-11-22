@@ -78,10 +78,12 @@ fun GoalsScreen(
                     IconButton(
                         onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i - 1))) },
                         enabled = i > 0,
+                        modifier = Modifier.semantics { contentDescription = "Move ${card.label} up" },
                     ) { Text("↑") }
                     IconButton(
                         onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i + 1))) },
                         enabled = i < prefs.todayCards.lastIndex,
+                        modifier = Modifier.semantics { contentDescription = "Move ${card.label} down" },
                     ) { Text("↓") }
                     Switch(
                         checked = on,

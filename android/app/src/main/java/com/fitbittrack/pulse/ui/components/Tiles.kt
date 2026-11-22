@@ -15,6 +15,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,15 +105,21 @@ fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect:
 
 /** Shown on any screen that is drawing sample numbers instead of the user's data. */
 @Composable
-fun SampleBanner() {
-    Text(
-        "Sample data. Your real data appears after sign-in and the first sync.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+fun SampleBanner(onConnect: (() -> Unit)? = null) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    )
+            .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Sample data. Connect your Google account to see yours.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+        )
+        if (onConnect != null) TextButton(onClick = onConnect) { Text("Connect") }
+    }
 }

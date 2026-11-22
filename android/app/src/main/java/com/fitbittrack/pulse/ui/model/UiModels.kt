@@ -139,4 +139,8 @@ data class SyncUi(
     val needsSignIn: Boolean,
     val lastSuccessLabel: String,
     val lastTrackerLabel: String,
+    /** Real account connected but nothing downloaded yet: show the first-sync card. */
+    val firstSyncPending: Boolean,
+    /** 0..1 during the history download, null when unknown. */
+    val progress: Float? = null,
 )

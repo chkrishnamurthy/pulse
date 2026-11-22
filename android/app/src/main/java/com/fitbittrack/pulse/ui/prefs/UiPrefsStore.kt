@@ -1,6 +1,7 @@
 package com.fitbittrack.pulse.ui.prefs
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -19,6 +20,24 @@ class UiPrefsStore(private val context: Context) {
     private val themeKey = stringPreferencesKey("theme")
     private val unitsKey = stringPreferencesKey("units")
     private val cardsKey = stringPreferencesKey("today_cards") // "Dial:1,Sleep:0,…"
+    private val connectedKey = booleanPreferencesKey("connected")
+    private val accountKey = stringPreferencesKey("account_name")
+
+    /** Whether the user connected a Google account and has not signed out. No tokens are stored. */
+    data class Session(val connected: Boolean, val accountName: String?)
+
+    val session: Flow<Session> = context.uiPrefsStore.data.map { p ->
+        Session(p[connectedKey] ?: false, p[accountKey])
+    }
+
+    suspend fun setConnected(accountName: String?) = context.uiPrefsStore.edit {
+        it[connectedKey] = true
+        if (accountName != null) it[accountKey] = accountName else it.remove(accountKey)
+    }
+
+    suspend fun clearSession() = context.uiPrefsStore.edit {
+        it.remove(connectedKey); it.remove(accountKey)
+    }
 
     val theme: Flow<ThemeMode> = context.uiPrefsStore.data.map { p ->
         p[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System

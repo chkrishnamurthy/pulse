@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,6 +53,7 @@ fun TodayScreen(
     isSample: Boolean,
     contentPadding: PaddingValues,
     onRefresh: () -> Unit,
+    onConnect: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGoals: () -> Unit,
     onOpenHeart: () -> Unit,
@@ -71,7 +71,8 @@ fun TodayScreen(
                 }
                 SyncChip(sync, onOpenSettings)
             }
-            if (isSample) SampleBanner()
+            if (isSample) SampleBanner(onConnect)
+            if (sync.firstSyncPending) FirstSyncCard(sync)
 
             if (TodayCard.Dial in shown) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -93,12 +94,12 @@ fun TodayScreen(
                 }
             }
 
-            today.insight?.let { InsightCard(it.title, it.body) }
+            today.insight?.let { InsightCard(it.title, it.body, it.positive) }
 
             val tiles = shown.filter { it != TodayCard.Dial }
             tiles.chunked(2).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    row.forEach { card -> TodayTile(card, today, Modifier.weight(1f), onOpenHeart, onOpenSleep, onOpenActivity) }
+                    row.forEach { card -> TodayTile(card, today, prefs.units, Modifier.weight(1f), onOpenHeart, onOpenSleep, onOpenActivity) }
                     if (row.size == 1) Box(Modifier.weight(1f))
                 }
             }
@@ -122,10 +123,23 @@ private fun SyncChip(sync: SyncUi, onClick: () -> Unit) {
 }
 
 @Composable
-private fun InsightCard(title: String, body: String) {
+private fun FirstSyncCard(sync: SyncUi) {
+    PulseCard {
+        Text(if (sync.running) "Downloading your history" else "Waiting for the first sync", style = MaterialTheme.typography.titleMedium)
+        if (sync.progress != null) ProgressBar(sync.progress, PulseTheme.colors.body)
+        Text(
+            sync.progressLabel ?: sync.error ?: "This starts automatically when your phone is online. It can take a few minutes for a long history.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (sync.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun InsightCard(title: String, body: String, positive: Boolean) {
     PulseCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(10.dp).background(PulseTheme.colors.heart, CircleShape).align(Alignment.Top))
+            Box(Modifier.size(10.dp).background(if (positive) PulseTheme.colors.good else PulseTheme.colors.heart, CircleShape).align(Alignment.Top))
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -136,7 +150,7 @@ private fun InsightCard(title: String, body: String) {
 
 @Composable
 private fun TodayTile(
-    card: TodayCard, t: TodayUi, modifier: Modifier,
+    card: TodayCard, t: TodayUi, units: com.fitbittrack.pulse.ui.model.Units, modifier: Modifier,
     onOpenHeart: () -> Unit, onOpenSleep: () -> Unit, onOpenActivity: () -> Unit,
 ) {
     val c = PulseTheme.colors
@@ -152,7 +166,8 @@ private fun TodayTile(
             ProgressBar((t.zoneMinutes ?: 0).toFloat() / t.zoneMinutesDailyTarget.coerceAtLeast(1), c.move)
         }
         TodayCard.CaloriesDistance -> MetricTile("Calories", c.moveLabel, Fmt.whole(t.caloriesKcal), "kcal", modifier, onOpenActivity) {
-            Text("${"%.1f".format((t.distanceMeters ?: 0.0) / 1000)} km", style = MaterialTheme.typography.bodyMedium, color = muted)
+            val (d, u) = Fmt.distance(t.distanceMeters, units)
+            Text("$d $u", style = MaterialTheme.typography.bodyMedium, color = muted)
         }
         TodayCard.Spo2 -> MetricTile("SpO2 · night", c.bodyLabel, Fmt.whole(t.spo2Percent), "%", modifier, onOpenSleep)
         TodayCard.Hrv -> MetricTile("HRV · night", c.heartLabel, Fmt.whole(t.hrvMs), "ms", modifier, onOpenHeart)
@@ -208,6 +223,3 @@ fun DayDial(
         drawCircle(nowColor, 8.dp.toPx(), dot, style = Stroke(3.dp.toPx()))
     }
 }
-
-@Suppress("unused")
-private val tileShape = RoundedCornerShape(18.dp)
