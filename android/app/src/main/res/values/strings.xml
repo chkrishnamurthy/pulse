@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Pulse</string>
+    <string name="widget_smart_desc">Smart: sleep in the morning, steps to go by day, wind-down at night</string>
+    <string name="widget_steps_desc">Steps today, or steps, zone minutes and sleep side by side</string>
+    <string name="widget_heart_desc">Resting heart rate with a 7-day trend</string>
+    <string name="widget_sleep_desc">Last night\'s sleep and stages</string>
+    <string name="widget_sync_desc">When Pulse last synced</string>
+</resources>

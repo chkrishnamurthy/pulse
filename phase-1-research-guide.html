@@ -1,0 +1,624 @@
+<title>My Fitbit App Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide 90% column; sections stack; diagrams + tables scroll inside their own boxes */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea; --heart:#c4415a; --heart-soft:#f8e0e5;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#a86a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9;
+  --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800;letter-spacing:-.01em}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px;word-break:break-word}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.lead{color:var(--muted);font-size:17px;max-width:75ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:28px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:stretch}
+.hero-left{display:flex;flex-direction:column;gap:14px;justify-content:center}
+.answer{background:var(--accent);color:var(--bg);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.answer .eyebrow{color:var(--bg);opacity:.85}
+.answer h3{font-size:24px}
+.answer ul{margin:0;padding-left:18px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+/* status cards */
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:1100px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.grid4,.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card p{color:var(--muted);font-size:14.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:fit-content;font-family:var(--body)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+.card.pick{border:2px solid var(--accent)}
+
+/* diagrams */
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:900px;height:auto}
+svg text{font-family:var(--body);fill:var(--fg)}
+svg .t-muted{fill:var(--muted)}
+svg .t-small{font-size:12px}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .box-accent{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .box-heart{fill:var(--heart-soft);stroke:var(--heart);stroke-width:1.5}
+svg .box-warn{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:6 4}
+svg .box-plain{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .arrow{stroke:var(--accent);stroke-width:2.2;fill:none}
+svg .arrow-dash{stroke:var(--muted);stroke-width:2;fill:none;stroke-dasharray:6 5}
+svg .head{fill:var(--accent)}
+svg .head-m{fill:var(--muted)}
+svg .t-title{font-family:var(--display);font-weight:700;font-size:15px}
+svg .num{font-family:var(--mono);font-size:11px;fill:var(--accent)}
+
+/* tables */
+.table-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:13px;letter-spacing:.02em;background:var(--surface2);color:var(--fg)}
+tr:last-child td{border-bottom:none}
+td code{font-size:12.5px}
+.yes{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}.mid{color:var(--warn);font-weight:600}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px}
+
+/* steps / roadmap */
+.road{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+@media (max-width:1100px){.road{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.road{grid-template-columns:1fr}}
+.phase{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.phase .n{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.phase.now{border:2px solid var(--accent);background:var(--accent-soft)}
+.phase ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+
+.note{border-left:4px solid var(--warn);background:var(--warn-soft);padding:14px 16px;border-radius:0 10px 10px 0;display:flex;flex-direction:column;gap:6px}
+.note.green{border-color:var(--ok);background:var(--ok-soft)}
+.note.red{border-color:var(--bad);background:var(--bad-soft)}
+.note strong{font-family:var(--display)}
+ul.clean{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14.5px}
+.kv dt{font-weight:600}.kv dd{margin:0;color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:160px 1fr 70px;gap:10px;align-items:center;font-size:14px}
+.bar{height:14px;border-radius:7px;background:var(--surface2);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent);border-radius:7px}
+.bar-row b{font-variant-numeric:tabular-nums;text-align:right}
+@media (max-width:560px){.bar-row{grid-template-columns:110px 1fr 54px}}
+.sources{columns:2;column-gap:28px;font-size:14px}
+.sources li{break-inside:avoid;margin-bottom:6px}
+@media (max-width:760px){.sources{columns:1}}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-left">
+    <span class="eyebrow">Phase 1 · Research and plan · checked 22 Nov 2026</span>
+    <h1>Your own Fitbit app: which Google API to use, and the plan to build it</h1>
+    <p class="lead">This page explains, in simple words, how your Fitbit data travels to Google, which official door your app can use to read it, what you can and cannot get, and the step-by-step plan we will follow. No code yet. First we understand.</p>
+  </div>
+  <div class="answer">
+    <span class="eyebrow">The short answer</span>
+    <h3>Use the Google Health API</h3>
+    <ul>
+      <li>It is Google's new official API for Fitbit data (launched 2026).</li>
+      <li>The old Fitbit Web API was switched off on <b>2 Nov 2026</b>. Old tutorials no longer work.</li>
+      <li>Google Fit API is being shut down too. Do not use it.</li>
+      <li>A personal app for your own data is allowed. No Google approval needed while you are the only user (up to 100 users).</li>
+      <li>Build it in <b>Kotlin + Jetpack Compose</b> (native Android).</li>
+      <li>Your device: <b>Fitbit Air</b> (screenless band).</li>
+    </ul>
+  </div>
+</header>
+
+<!-- 0. YOUR SETUP -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Your answers · confirmed</span>
+    <h2>Your setup and decisions</h2>
+    <p class="lead">This is what you told me. The plan below is now tuned for it.</p>
+  </div>
+  <div class="grid4">
+    <div class="card"><span class="pill ok">✔ Device</span><h3>Fitbit Air</h3><p>Screenless band. Sensors (Google Store specs): optical heart rate, red + infrared (SpO2), temperature, accelerometer, gyroscope. <b>No GPS</b> (uses your phone), <b>no ECG</b>.</p></div>
+    <div class="card"><span class="pill ok">✔ Phone + app</span><h3>Android + Google Health app</h3><p>Signed in with your Google account. Data is syncing. Android Studio is already installed.</p></div>
+    <div class="card"><span class="pill ok">✔ Decisions</span><h3>Google Health API · Android only · phone-first</h3><p>Kotlin app. No server now. A server can be added later (Phase 8).</p></div>
+    <div class="card"><span class="pill info">Your wish</span><h3>Highly customizable + latest tech</h3><p>We will make the dashboard cards, goals, colors and units fully customizable, on a modern 2026 Android stack.</p></div>
+  </div>
+  <div class="card">
+    <h3>Your tech stack (latest stable versions, checked when we create the project)</h3>
+    <div class="table-box" style="border:none">
+      <table>
+        <thead><tr><th>Layer</th><th>Tool</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Language</td><td>Kotlin 2.x + Coroutines / Flow</td><td>Google's main Android language</td></tr>
+          <tr><td>Screens</td><td>Jetpack Compose + Material 3 (dynamic color)</td><td>Modern, smooth, easy to customize</td></tr>
+          <tr><td>Navigation</td><td>Navigation Compose (type-safe)</td><td>Clean moves between screens</td></tr>
+          <tr><td>Google sign-in</td><td>Google Identity Services (Authorization API)</td><td>Official, no secrets in the app</td></tr>
+          <tr><td>Network</td><td>Retrofit or Ktor + kotlinx.serialization + OkHttp</td><td>Calls the Google Health API</td></tr>
+          <tr><td>Local database</td><td>Room</td><td>Offline dashboard, no duplicates</td></tr>
+          <tr><td>Settings / goals</td><td>DataStore</td><td>Saves your custom choices</td></tr>
+          <tr><td>Background sync</td><td>WorkManager</td><td>Official way to sync while app is closed</td></tr>
+          <tr><td>Charts</td><td>Vico (Compose charts) + custom Canvas</td><td>Heart-rate lines, sleep stage bands</td></tr>
+          <tr><td>Wiring</td><td>Hilt (dependency injection)</td><td>Keeps code tidy as the app grows</td></tr>
+          <tr><td>Security</td><td>Android Keystore</td><td>Encrypts anything stored on the phone</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 1. API LANDSCAPE -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 1 · Know the options</span>
+    <h2>The four Google health APIs, and which ones are still alive</h2>
+    <p class="lead">You will find many tutorials online. Most are now out of date. Here is the real status today.</p>
+  </div>
+  <div class="grid4">
+    <div class="card pick">
+      <span class="pill ok">✔ Use this</span>
+      <h3>Google Health API</h3>
+      <p>New cloud API at <code>health.googleapis.com/v4</code>. Reads all your Fitbit data from Google's servers: steps, heart rate, sleep stages, SpO2, workouts and more. Uses normal Google sign-in (OAuth 2.0).</p>
+    </div>
+    <div class="card">
+      <span class="pill bad">✖ Turned off</span>
+      <h3>Fitbit Web API (old)</h3>
+      <p>The classic <code>api.fitbit.com</code> API. Support ended 30 Sep 2026 and it was switched off on 2 Nov 2026. Any tutorial using it will fail.</p>
+    </div>
+    <div class="card">
+      <span class="pill bad">✖ Being shut down</span>
+      <h3>Google Fit API</h3>
+      <p>Old Google fitness API. Deprecated, no new sign-ups, and support ends in 2026. Google tells developers to move to Google Health API or Health Connect.</p>
+    </div>
+    <div class="card">
+      <span class="pill warn">◐ Helper only</span>
+      <h3>Health Connect</h3>
+      <p>A store <b>on your phone</b>, not in the cloud. Apps share data through it. The Fitbit / Google Health app can copy some data into it. Good as a backup source, but it has fewer Fitbit details.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2. HOW DATA FLOWS -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 2 · Understand the journey</span>
+    <h2>How your Fitbit data reaches your app</h2>
+    <p class="lead">Your tracker never talks to your app directly. It always goes through Google first. Your app reads it from Google.</p>
+  </div>
+  <div class="diagram" role="img" aria-label="Data flow: Fitbit tracker sends data by Bluetooth to the Google Health app on your phone, which uploads it to Google cloud. Your app reads it through the Google Health API. Optionally the Google Health app also writes some data to Health Connect on the phone.">
+    <svg viewBox="0 0 1200 330" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+        <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head-m"/></marker>
+      </defs>
+      <!-- boxes -->
+      <rect x="20" y="60" width="190" height="110" rx="14" class="box-heart"/>
+      <text x="115" y="98" text-anchor="middle" class="t-title">Fitbit tracker</text>
+      <text x="115" y="122" text-anchor="middle" class="t-small t-muted">on your wrist</text>
+      <text x="115" y="142" text-anchor="middle" class="t-small t-muted">measures steps, HR, sleep</text>
+
+      <rect x="270" y="60" width="200" height="110" rx="14" class="box"/>
+      <text x="370" y="98" text-anchor="middle" class="t-title">Google Health app</text>
+      <text x="370" y="122" text-anchor="middle" class="t-small t-muted">(Fitbit app) on phone</text>
+      <text x="370" y="142" text-anchor="middle" class="t-small t-muted">receives by Bluetooth</text>
+
+      <rect x="530" y="60" width="200" height="110" rx="14" class="box"/>
+      <text x="630" y="98" text-anchor="middle" class="t-title">Google cloud</text>
+      <text x="630" y="122" text-anchor="middle" class="t-small t-muted">stores your full history</text>
+      <text x="630" y="142" text-anchor="middle" class="t-small t-muted">(your Google account)</text>
+
+      <rect x="790" y="60" width="180" height="110" rx="14" class="box-accent"/>
+      <text x="880" y="98" text-anchor="middle" class="t-title">Google Health API</text>
+      <text x="880" y="122" text-anchor="middle" class="t-small t-muted">health.googleapis.com</text>
+      <text x="880" y="142" text-anchor="middle" class="t-small t-muted">needs your permission</text>
+
+      <rect x="1020" y="60" width="160" height="110" rx="14" class="box-accent"/>
+      <text x="1100" y="98" text-anchor="middle" class="t-title">YOUR app</text>
+      <text x="1100" y="122" text-anchor="middle" class="t-small t-muted">dashboard, charts,</text>
+      <text x="1100" y="142" text-anchor="middle" class="t-small t-muted">goals, reports</text>
+
+      <!-- arrows -->
+      <path d="M210 115 L265 115" class="arrow" marker-end="url(#ah)"/>
+      <text x="238" y="105" text-anchor="middle" class="num">1</text>
+      <path d="M470 115 L525 115" class="arrow" marker-end="url(#ah)"/>
+      <text x="498" y="105" text-anchor="middle" class="num">2</text>
+      <path d="M730 115 L785 115" class="arrow" marker-end="url(#ah)"/>
+      <text x="758" y="105" text-anchor="middle" class="num">3</text>
+      <path d="M970 115 L1015 115" class="arrow" marker-end="url(#ah)"/>
+      <text x="993" y="105" text-anchor="middle" class="num">4</text>
+
+      <!-- labels under arrows -->
+      <text x="238" y="200" text-anchor="middle" class="t-small t-muted">Bluetooth sync</text>
+      <text x="498" y="200" text-anchor="middle" class="t-small t-muted">internet upload</text>
+      <text x="758" y="200" text-anchor="middle" class="t-small t-muted">official door</text>
+      <text x="993" y="200" text-anchor="middle" class="t-small t-muted">HTTPS + token</text>
+
+      <!-- health connect path -->
+      <rect x="270" y="235" width="200" height="72" rx="14" class="box-warn"/>
+      <text x="370" y="265" text-anchor="middle" class="t-title">Health Connect</text>
+      <text x="370" y="287" text-anchor="middle" class="t-small t-muted">on-phone store (some types)</text>
+      <path d="M370 170 L370 230" class="arrow-dash" marker-end="url(#am)"/>
+      <path d="M470 272 C 800 272, 1060 272, 1090 178" class="arrow-dash" marker-end="url(#am)"/>
+      <text x="780" y="262" text-anchor="middle" class="t-small t-muted">optional side path: read on the phone, no cloud</text>
+    </svg>
+  </div>
+  <div class="grid2">
+    <div class="note"><strong>Important: data only appears after the tracker syncs.</strong><span>If your tracker has not synced to the phone, the API has nothing new. The API is never "live from the wrist". This is normal and our app must show "last synced at …".</span></div>
+    <div class="note"><strong>One setup step before any code.</strong><span>Google says you must first link Google Health to your Google account inside the Google Health app. If not, the API returns error <code>ACCOUNT_NOT_LINKED</code>.</span></div>
+  </div>
+</section>
+
+<!-- 3. COMPARE -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 3 · Compare the two real choices</span>
+    <h2>Google Health API vs Health Connect</h2>
+    <p class="lead">These are the only two official, living ways. They are very different.</p>
+  </div>
+  <div class="table-box">
+    <table>
+      <thead><tr><th>Question</th><th>Google Health API (cloud)</th><th>Health Connect (on phone)</th></tr></thead>
+      <tbody>
+        <tr><td>Where is the data?</td><td>Google's servers</td><td>Inside your Android phone only</td></tr>
+        <tr><td>Who puts Fitbit data there?</td><td>Google, automatically after each sync</td><td>The Google Health / Fitbit app, only for types you allow</td></tr>
+        <tr><td>Fitbit detail level</td><td class="yes">Full: sleep stages, AZM, SpO2, HRV, ECG, skin temp…</td><td class="mid">Partial: common types (steps, HR, sleep, exercise…)</td></tr>
+        <tr><td>Full history</td><td class="yes">Yes, "as far back as it has been recorded"</td><td class="mid">Needs an extra history permission; only what was copied</td></tr>
+        <tr><td>Needs Google Cloud project</td><td class="mid">Yes (free)</td><td class="yes">No</td></tr>
+        <tr><td>Sign-in</td><td>Google OAuth 2.0</td><td>Android permission pop-up</td></tr>
+        <tr><td>Push updates (webhooks)</td><td class="yes">Yes, needs a small server</td><td class="no">No, app must ask the phone</td></tr>
+        <tr><td>Works on web / other devices</td><td class="yes">Yes</td><td class="no">Android only</td></tr>
+        <tr><td><b>Verdict for us</b></td><td><b class="yes">Main source</b></td><td><b class="mid">Optional fallback later</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 4. METRICS -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 4 · What data can we get</span>
+    <h2>Your metrics, mapped to real API data types</h2>
+    <p class="lead">Every name in the "API data type" column comes from Google's official data type list. Nothing is invented. Whether <i>your</i> tracker records it depends on its model and sensors.</p>
+  </div>
+  <div class="legend">
+    <span class="pill ok">✔ Every Fitbit records it</span>
+    <span class="pill warn">◐ Only some models (needs a sensor)</span>
+    <span class="pill info">🔑 Needs its own extra permission</span>
+  </div>
+  <div class="table-box">
+    <table>
+      <thead><tr><th>What you want</th><th>API data type</th><th>Permission group (scope)</th><th>Your Fitbit Air</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Daily steps</td><td><code>steps</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ yes</span></td><td>Has daily roll-up</td></tr>
+        <tr><td>Distance</td><td><code>distance</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ yes</span></td><td>Estimated from steps; workouts use your phone's GPS</td></tr>
+        <tr><td>Calories burned</td><td><code>total-calories</code>, <code>active-energy-burned</code>, <code>basal-energy-burned</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ yes</span></td><td>total-calories: roll-up only, max 14 days per request</td></tr>
+        <tr><td>Floors climbed</td><td><code>floors</code>, <code>altitude</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ floors</span></td><td>Google's device table lists floors for the Air (altitude is not listed)</td></tr>
+        <tr><td>Active zone minutes</td><td><code>active-zone-minutes</code>, <code>active-minutes</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ yes</span></td><td>Uses heart-rate sensor</td></tr>
+        <tr><td>Heart rate</td><td><code>heart-rate</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes</span></td><td>Air stores HR about every 2 seconds; max 14 days per roll-up</td></tr>
+        <tr><td>Resting heart rate</td><td><code>daily-resting-heart-rate</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes</span></td><td>One value per day</td></tr>
+        <tr><td>Heart-rate zones</td><td><code>daily-heart-rate-zones</code>, <code>time-in-heart-rate-zone</code></td><td>health_metrics_and_measurements</td><td><span class="pill bad">✖ not listed</span></td><td>Not in Google's Air device table; Pulse will draw zones from heart rate itself</td></tr>
+        <tr><td>Sleep duration + stages</td><td><code>sleep</code></td><td>sleep</td><td><span class="pill ok">✔ yes</span></td><td>Stages (light, deep, REM, awake) are inside each sleep record. Max 25 per page</td></tr>
+        <tr><td>Workouts</td><td><code>exercise</code></td><td>activity_and_fitness</td><td><span class="pill ok">✔ yes</span></td><td>Max 25 per page. GPS route only if phone tracked it</td></tr>
+        <tr><td>SpO2 (blood oxygen)</td><td><code>daily-oxygen-saturation</code>, <code>oxygen-saturation</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes*</span></td><td>*Red/IR sensor present; not offered in every country</td></tr>
+        <tr><td>HRV</td><td><code>heart-rate-variability</code>, <code>daily-heart-rate-variability</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes</span></td><td>Measured during sleep</td></tr>
+        <tr><td>Breathing rate</td><td><code>daily-respiratory-rate</code>, <code>respiratory-rate-sleep-summary</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes</span></td><td>Measured during sleep</td></tr>
+        <tr><td>Skin temperature</td><td><code>daily-sleep-temperature-derivations</code></td><td>health_metrics_and_measurements</td><td><span class="pill ok">✔ yes*</span></td><td>Change vs your normal; *not in every country</td></tr>
+        <tr><td>Cardio fitness (VO2 max)</td><td><code>vo2-max</code>, <code>daily-vo2-max</code>, <code>run-vo2-max</code></td><td>activity_and_fitness</td><td><span class="pill warn">◐ check</span></td><td>We will see if data comes back in Phase 2</td></tr>
+        <tr><td>ECG</td><td><code>electrocardiogram</code></td><td><span class="pill info">🔑 ecg</span></td><td><span class="pill bad">✖ no</span></td><td>Air has no ECG sensor. Skip this scope</td></tr>
+        <tr><td>Irregular rhythm alerts</td><td><code>irregular-rhythm-notification</code></td><td><span class="pill info">🔑 irn</span></td><td><span class="pill warn">◐ check</span></td><td>Reported for Air in some regions; separate permission</td></tr>
+        <tr><td>Weight, body fat</td><td><code>weight</code>, <code>body-fat</code></td><td>health_metrics_and_measurements</td><td>Logged by you</td><td>Can also be written by our app</td></tr>
+        <tr><td>Water, food</td><td><code>hydration-log</code>, <code>nutrition-log</code></td><td>nutrition</td><td>Logged by you</td><td>Can also be written by our app</td></tr>
+        <tr><td>Paired devices, battery, last sync</td><td><code>users/me/pairedDevices</code></td><td>profile / settings</td><td><span class="pill ok">✔ yes</span></td><td>Great for our "sync status" screen</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><strong>What is NOT in the API</strong><span>No separate "sleep stages" endpoint (stages live inside <code>sleep</code>). No BMI or BMR type (Google says calculate them yourself). No live / real-time heart rate stream. The "Your Fitbit Air" column is based on Google's published sensor list; we confirm each row with your real data in Phase 2.</span></div>
+</section>
+
+<!-- 5. ACCESS RULES -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 5 · Rules and limits</span>
+    <h2>Can a personal app read my own data? Yes. Here are the rules.</h2>
+  </div>
+  <div class="grid3">
+    <div class="card">
+      <span class="pill ok">Approval</span>
+      <h3>No review needed for personal use</h3>
+      <p>New apps start "unverified" with a cap of <b>100 users</b>. You are 1 user, so this is fine. A security review is only needed if you go above 100 users. No special access form is needed.</p>
+    </div>
+    <div class="card">
+      <span class="pill warn">Catch</span>
+      <h3>"Testing" mode logs you out every 7 days</h3>
+      <p>In Testing mode, refresh tokens expire after <b>7 days</b>. You would need to sign in again each week. In "In production" mode, refresh tokens normally last until unused for about 6 months. We will choose this in Phase 2.</p>
+    </div>
+    <div class="card">
+      <span class="pill info">Cost</span>
+      <h3>Free, with generous limits</h3>
+      <p>Google Cloud project is free. Limits are far above what one person needs. No sandbox exists, so we test with your real data.</p>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Rate limits (from Google)</h3>
+      <div class="bars" aria-label="Rate limits">
+        <div class="bar-row"><span>Per user, per minute</span><div class="bar"><span style="width:18%"></span></div><b>300</b></div>
+        <div class="bar-row"><span>Our app, normal sync</span><div class="bar"><span style="width:3%;background:var(--ok)"></span></div><b>~20</b></div>
+      </div>
+      <p>A full refresh of one day needs about 15–20 calls. A one-time history download needs more, so we will go slowly and retry on error <code>429</code>.</p>
+    </div>
+    <div class="card">
+      <h3>Request size limits</h3>
+      <dl class="kv">
+        <dt>Most types</dt><dd>up to 10,000 records per page</dd>
+        <dt>Sleep, exercise</dt><dd>up to 25 records per page</dd>
+        <dt>Roll-up range</dt><dd>14 days for heart-rate, calories, active-minutes; 90 days for others</dd>
+        <dt>History</dt><dd>no limit stated: back to your first record</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- 6. ARCHITECTURE -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 6 · The design</span>
+    <h2>Recommended architecture</h2>
+    <p class="lead">We build in two stages. Stage A is a phone-only app (simple, no server). Stage B adds a tiny server only if we want instant push updates and the strongest token safety.</p>
+  </div>
+  <div class="diagram" role="img" aria-label="Architecture: the Android app has a UI layer, a view model, a repository, a Room database, WorkManager background jobs, and a Health API client. It signs in through Google Identity Services and calls the Google Health API. An optional Stage B server on Cloud Run stores the refresh token, receives webhooks and writes to a database.">
+    <svg viewBox="0 0 1200 470" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+        <marker id="am2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head-m"/></marker>
+      </defs>
+      <!-- phone frame -->
+      <rect x="20" y="20" width="520" height="430" rx="22" class="box-plain"/>
+      <text x="40" y="50" class="t-title">Stage A · Your Android app (Kotlin)</text>
+
+      <rect x="45" y="70" width="470" height="52" rx="10" class="box-accent"/>
+      <text x="280" y="93" text-anchor="middle" class="t-title">Screens (Jetpack Compose)</text>
+      <text x="280" y="112" text-anchor="middle" class="t-small t-muted">Today · Heart · Sleep · Workouts · Reports · Goals · Settings</text>
+
+      <rect x="45" y="140" width="470" height="44" rx="10" class="box"/>
+      <text x="280" y="167" text-anchor="middle" class="t-title">ViewModels (screen state)</text>
+
+      <rect x="45" y="202" width="470" height="44" rx="10" class="box"/>
+      <text x="280" y="229" text-anchor="middle" class="t-title">Repository (one place that decides: cache or download)</text>
+
+      <rect x="45" y="266" width="145" height="80" rx="10" class="box"/>
+      <text x="117" y="298" text-anchor="middle" class="t-title">Room DB</text>
+      <text x="117" y="318" text-anchor="middle" class="t-small t-muted">offline copy,</text>
+      <text x="117" y="334" text-anchor="middle" class="t-small t-muted">no duplicates</text>
+
+      <rect x="207" y="266" width="145" height="80" rx="10" class="box"/>
+      <text x="279" y="298" text-anchor="middle" class="t-title">Health API</text>
+      <text x="279" y="318" text-anchor="middle" class="t-small t-muted">client (Retrofit</text>
+      <text x="279" y="334" text-anchor="middle" class="t-small t-muted">+ retry on errors)</text>
+
+      <rect x="370" y="266" width="145" height="80" rx="10" class="box"/>
+      <text x="442" y="298" text-anchor="middle" class="t-title">WorkManager</text>
+      <text x="442" y="318" text-anchor="middle" class="t-small t-muted">sync every</text>
+      <text x="442" y="334" text-anchor="middle" class="t-small t-muted">few hours</text>
+
+      <rect x="45" y="366" width="470" height="62" rx="10" class="box-heart"/>
+      <text x="280" y="392" text-anchor="middle" class="t-title">Sign-in (Google Identity Services)</text>
+      <text x="280" y="412" text-anchor="middle" class="t-small t-muted">asks your consent · token kept in memory / Android Keystore · no secrets in app</text>
+
+      <!-- arrows inside phone -->
+      <path d="M280 122 L280 136" class="arrow" marker-end="url(#ah2)"/>
+      <path d="M280 184 L280 198" class="arrow" marker-end="url(#ah2)"/>
+      <path d="M150 246 L130 262" class="arrow" marker-end="url(#ah2)"/>
+      <path d="M280 246 L280 262" class="arrow" marker-end="url(#ah2)"/>
+      <path d="M442 262 L420 246" class="arrow" marker-end="url(#ah2)"/>
+
+      <!-- google side -->
+      <rect x="680" y="80" width="230" height="90" rx="14" class="box-heart"/>
+      <text x="795" y="115" text-anchor="middle" class="t-title">Google sign-in</text>
+      <text x="795" y="138" text-anchor="middle" class="t-small t-muted">accounts.google.com</text>
+      <text x="795" y="156" text-anchor="middle" class="t-small t-muted">gives access token</text>
+
+      <rect x="680" y="230" width="230" height="110" rx="14" class="box-accent"/>
+      <text x="795" y="268" text-anchor="middle" class="t-title">Google Health API</text>
+      <text x="795" y="292" text-anchor="middle" class="t-small t-muted">/v4/users/me/dataTypes/…</text>
+      <text x="795" y="312" text-anchor="middle" class="t-small t-muted">list · rollUp · dailyRollUp</text>
+
+      <path d="M515 397 C 600 397, 620 140, 675 128" class="arrow" marker-end="url(#ah2)"/>
+      <text x="600" y="250" class="num">1 sign in</text>
+      <path d="M352 306 L675 290" class="arrow" marker-end="url(#ah2)"/>
+      <text x="520" y="285" class="num">2 GET data + token</text>
+
+      <!-- stage B -->
+      <rect x="960" y="150" width="220" height="290" rx="18" class="box-warn"/>
+      <text x="1070" y="180" text-anchor="middle" class="t-title">Stage B (optional)</text>
+      <text x="1070" y="200" text-anchor="middle" class="t-small t-muted">small server, e.g. Cloud Run</text>
+      <text x="980" y="236" class="t-small">• keeps refresh token safely</text>
+      <text x="980" y="260" class="t-small">  (Secret Manager)</text>
+      <text x="980" y="290" class="t-small">• receives webhooks when</text>
+      <text x="980" y="312" class="t-small">  new data arrives</text>
+      <text x="980" y="342" class="t-small">• syncs even if phone is off</text>
+      <text x="980" y="372" class="t-small">• app talks only to it</text>
+      <text x="980" y="402" class="t-small">• web dashboard possible</text>
+      <path d="M910 300 L955 320" class="arrow-dash" marker-end="url(#am2)"/>
+      <text x="905" y="350" class="t-small t-muted">webhook</text>
+    </svg>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>Why phone-only first?</h3><p>Fewer moving parts for a beginner. No server to pay for or secure. Your data stays between your phone and Google. Good enough for one person.</p></div>
+    <div class="card"><h3>Why add a server later?</h3><p>Only a server can receive Google's push messages (webhooks), keep a long-life refresh token fully off the phone, and sync while your phone is off.</p></div>
+    <div class="card"><h3>Why a local database?</h3><p>The dashboard opens instantly and works offline. Each record is saved by its unique id, so syncing twice never creates duplicates.</p></div>
+  </div>
+</section>
+
+<!-- 7. SYNC -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 7 · Keeping data fresh</span>
+    <h2>How syncing will work</h2>
+  </div>
+  <div class="table-box">
+    <table>
+      <thead><tr><th>Kind of sync</th><th>How we do it</th><th>Official?</th></tr></thead>
+      <tbody>
+        <tr><td>First history download</td><td>Walk back month by month using <code>dailyRollUp</code> (90-day windows, 14 for heart rate), save to Room, show a progress bar</td><td class="yes">Official API calls</td></tr>
+        <tr><td>Regular sync</td><td>WorkManager job every 2–6 hours, only asks for data newer than the last saved time</td><td class="yes">Official (Android WorkManager)</td></tr>
+        <tr><td>Pull-to-refresh</td><td>Same job, run right now</td><td class="yes">Official</td></tr>
+        <tr><td>Instant updates</td><td>Google sends a webhook to our server; server tells the app</td><td class="yes">Official, but needs Stage B server</td></tr>
+        <tr><td>Force tracker to sync</td><td>Not possible from our app. You open the Google Health app or wait for auto-sync</td><td class="no">No API for this</td></tr>
+        <tr><td>Token expired</td><td>Ask Google Identity again silently; if that fails, show "Sign in again"</td><td class="yes">Official</td></tr>
+        <tr><td>Errors 429 / 503 / 504</td><td>Wait and retry with growing delays (exponential backoff), as Google recommends</td><td class="yes">Official guidance</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 8. TECH CHOICE -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 8 · Pick the tools</span>
+    <h2>Kotlin vs Flutter vs React Native</h2>
+  </div>
+  <div class="table-box">
+    <table>
+      <thead><tr><th></th><th>Kotlin + Jetpack Compose</th><th>Flutter (Dart)</th><th>React Native (JS)</th></tr></thead>
+      <tbody>
+        <tr><td>Google sign-in on Android</td><td class="yes">First-class, official libraries</td><td class="mid">Via plugins</td><td class="mid">Via plugins</td></tr>
+        <tr><td>Health Connect (later)</td><td class="yes">Official Jetpack SDK</td><td class="mid">Community plugin</td><td class="mid">Community plugin</td></tr>
+        <tr><td>Background sync</td><td class="yes">WorkManager, built in</td><td class="mid">Plugin, more setup</td><td class="mid">Plugin, more setup</td></tr>
+        <tr><td>Secure storage</td><td class="yes">Android Keystore directly</td><td class="mid">Plugin</td><td class="mid">Plugin</td></tr>
+        <tr><td>Beautiful charts</td><td class="yes">Vico / Compose Canvas</td><td class="yes">fl_chart</td><td class="mid">Victory / Skia</td></tr>
+        <tr><td>iPhone version too</td><td class="no">No (Android only)</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td><b>Fit for this project</b></td><td><b class="yes">Best</b></td><td><b class="mid">Good</b></td><td><b class="mid">OK</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note green"><strong>Recommendation: Kotlin + Jetpack Compose.</strong><span>You want an Android app, Google's sign-in, Health Connect and background sync are all official Kotlin-first tools, and Android Studio gives the best help for beginners. Choose Flutter only if you also want an iPhone app.</span></div>
+</section>
+
+<!-- 9. SECURITY -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 9 · Stay safe</span>
+    <h2>Security and privacy rules we will follow</h2>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>No secrets in the app</h3><p>An Android app can be unpacked by anyone. We never put a client secret or API key in it. Android sign-in uses your app's package name and signing fingerprint instead.</p></div>
+    <div class="card"><h3>Tokens stay locked</h3><p>Access tokens live in memory (they last about 1 hour). Anything kept on disk is encrypted with Android Keystore. In Stage B the refresh token lives only on the server, in Secret Manager.</p></div>
+    <div class="card"><h3>Health data is private</h3><p>Room database is encrypted, excluded from cloud backup, and never logged. We ask only for read-only scopes. Server calls use HTTPS and check Google's webhook signature.</p></div>
+  </div>
+</section>
+
+<!-- 10. ROADMAP -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 10 · The plan</span>
+    <h2>Build roadmap: one phase at a time</h2>
+    <p class="lead">After each phase you test, then confirm before we move on.</p>
+  </div>
+  <div class="road">
+    <div class="phase"><span class="n">Phase 1 · ✔ done</span><h3>Research and plan</h3><ul><li>Choose API and architecture</li><li>This page</li></ul></div>
+    <div class="phase now"><span class="n">Phase 2 · next</span><h3>Google Cloud setup</h3><ul><li>Link Google Health</li><li>Create project, enable API</li><li>Consent screen, OAuth client</li><li>First test call in OAuth Playground (no code)</li></ul></div>
+    <div class="phase"><span class="n">Phase 3</span><h3>Android project + sign-in</h3><ul><li>Install Android Studio</li><li>New Compose project</li><li>Google sign-in, get token</li><li>Print your step count</li></ul></div>
+    <div class="phase"><span class="n">Phase 4</span><h3>Data layer</h3><ul><li>API client for each type</li><li>Room database</li><li>Error handling and retry</li></ul></div>
+    <div class="phase"><span class="n">Phase 5</span><h3>Sync engine</h3><ul><li>History download</li><li>WorkManager background sync</li><li>Pull-to-refresh, sync status</li></ul></div>
+    <div class="phase"><span class="n">Phase 6</span><h3>Dashboard UI</h3><ul><li>Today screen, heart graph</li><li>Sleep stages chart</li><li>Workouts list</li></ul></div>
+    <div class="phase"><span class="n">Phase 7</span><h3>Reports and goals</h3><ul><li>Weekly / monthly reports</li><li>Custom goals</li><li>Settings, sign-out, delete data</li><li>Home-screen widgets (12 options, incl. smart widget)</li></ul></div>
+    <div class="phase"><span class="n">Phase 8 · optional</span><h3>Server (Stage B)</h3><ul><li>Cloud Run service</li><li>Webhooks</li><li>Health Connect fallback</li></ul></div>
+  </div>
+</section>
+
+<!-- 11. RISKS -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Step 11 · Things we will check in Phase 2</span>
+    <h2>Open points (honest list)</h2>
+  </div>
+  <div class="grid2">
+    <div class="note"><strong>Android sign-in client type</strong><span>Google's Health API setup guide shows a "Web server" OAuth client and says mobile apps must use the system browser (Chrome Custom Tabs). It does not show an Android client example. In Phase 2 we test the Android sign-in path first; if it does not work, we use AppAuth with Custom Tabs or move token exchange to the Stage B server.</span></div>
+    <div class="note"><strong>Testing vs In production mode</strong><span>Testing mode = re-login every 7 days. In production (still unverified, under 100 users) = long-lived tokens, but Google shows an "unverified app" warning screen when you sign in. We decide together in Phase 2.</span></div>
+    <div class="note"><strong>Very new API</strong><span>Google's own migration page still has some old text. Some types (like skin-temperature-sensors) are only in <code>v4beta</code>. We will re-check release notes at each phase.</span></div>
+    <div class="note"><strong>Your device: Fitbit Air</strong><span>Sensor list is known (HR, SpO2, temperature, motion; no ECG, no GPS). Phase 2's first test call will confirm which data types really return values for your account.</span></div>
+  </div>
+</section>
+
+<!-- 12. NEXT -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Next · Phase 2</span>
+    <h2>Where the Google Cloud project happens</h2>
+    <p class="lead">Creating the Google Cloud project is <b>Phase 2</b>. You do it in your web browser. No code, about 30–45 minutes.</p>
+  </div>
+  <div class="road">
+    <div class="phase"><span class="n">2.1</span><h3>Link Google Health</h3><ul><li>Check the account link in the Google Health app</li></ul></div>
+    <div class="phase"><span class="n">2.2</span><h3>Create project</h3><ul><li>console.cloud.google.com → New project</li></ul></div>
+    <div class="phase"><span class="n">2.3</span><h3>Enable the API</h3><ul><li>API Library → "Google Health API" → Enable</li></ul></div>
+    <div class="phase"><span class="n">2.4</span><h3>Consent screen</h3><ul><li>External, Testing, add yourself as test user</li><li>Add read-only scopes</li></ul></div>
+    <div class="phase"><span class="n">2.5</span><h3>OAuth clients</h3><ul><li>Web client (for testing)</li><li>Android client (package + SHA-1)</li></ul></div>
+    <div class="phase"><span class="n">2.6</span><h3>First real call</h3><ul><li>OAuth Playground: read your steps, no code</li></ul></div>
+    <div class="phase"><span class="n">2.7</span><h3>Check each metric</h3><ul><li>See which types return data for your Air</li></ul></div>
+    <div class="phase"><span class="n">2.8</span><h3>Decide token mode</h3><ul><li>Testing (7-day login) vs In production</li></ul></div>
+  </div>
+  <div class="note"><strong>Still useful to know (not blocking)</strong><span>Your Android <b>version number</b> (Settings → About phone → Android version), and your <b>top 3 metrics</b> so we build those screens first.</span></div>
+</section>
+
+<!-- SOURCES -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Official sources used</span>
+    <h2>Read more</h2>
+  </div>
+  <ul class="sources">
+    <li><a href="https://developers.google.com/health">Google Health API home</a></li>
+    <li><a href="https://developers.google.com/health/get-started">Get started</a></li>
+    <li><a href="https://developers.google.com/health/setup">Setup (Cloud project, OAuth, test users, token expiry)</a></li>
+    <li><a href="https://developers.google.com/health/scopes">Scopes</a></li>
+    <li><a href="https://developers.google.com/health/data-types">Data types</a></li>
+    <li><a href="https://developers.google.com/health/endpoints">Endpoints and history queries</a></li>
+    <li><a href="https://developers.google.com/health/rate-limits">Rate limits</a></li>
+    <li><a href="https://developers.google.com/health/webhooks">Webhooks</a></li>
+    <li><a href="https://developers.google.com/health/libraries">Client libraries</a></li>
+    <li><a href="https://developers.google.com/health/developer-checklist">Developer checklist</a></li>
+    <li><a href="https://developers.google.com/health/support">Support (Fitbit Web API shutdown dates)</a></li>
+    <li><a href="https://developers.google.com/health/migration/api-specifications">Fitbit → Google Health migration specs</a></li>
+    <li><a href="https://developers.google.com/health/codelabs/make-your-first-api-call-using-oauth2-playground">Codelab: first call with OAuth Playground</a></li>
+    <li><a href="https://developers.google.com/health/policies/health-api-developer-user-data-policy">User data policy</a></li>
+    <li><a href="https://developer.android.com/health-and-fitness/health-connect">Health Connect overview</a></li>
+    <li><a href="https://developer.android.com/health-and-fitness/health-connect/data-types">Health Connect data types</a></li>
+    <li><a href="https://developer.android.com/health-and-fitness/health-connect/migration/fit">Google Fit migration guide</a></li>
+    <li><a href="https://support.google.com/fitbit/answer/14506680">Fitbit help: Health Connect</a></li>
+  </ul>
+</section>
+
+</div>

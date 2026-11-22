@@ -1,0 +1,639 @@
+<title>Fitbit App: Phase 2 Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide 90% column; a numbered click-path, each step a card with "where / click / check" */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea; --heart:#c4415a; --heart-soft:#f8e0e5;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#a86a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9;
+  --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800;letter-spacing:-.01em}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px;word-break:break-word}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.lead{color:var(--muted);font-size:17px;max-width:80ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:28px}
+.ui{font-weight:600;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:0 6px;white-space:nowrap}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:stretch}
+.hero-left{display:flex;flex-direction:column;gap:14px;justify-content:center}
+.answer{background:var(--accent);color:var(--bg);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.answer .eyebrow{color:var(--bg);opacity:.85}
+.answer h3{font-size:22px}
+.answer ul{margin:0;padding-left:18px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card p{color:var(--muted);font-size:14.5px}
+.card.pick{border:2px solid var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:fit-content}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+
+/* diagram */
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:980px;height:auto}
+svg text{font-family:var(--body);fill:var(--fg)}
+svg .t-muted{fill:var(--muted)}
+svg .t-small{font-size:12px}
+svg .t-title{font-family:var(--display);font-weight:700;font-size:14px}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .box-accent{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .box-heart{fill:var(--heart-soft);stroke:var(--heart);stroke-width:1.5}
+svg .box-ok{fill:var(--ok-soft);stroke:var(--ok);stroke-width:2}
+svg .arrow{stroke:var(--accent);stroke-width:2.2;fill:none}
+svg .head{fill:var(--accent)}
+svg .num{font-family:var(--mono);font-size:12px;fill:var(--accent);font-weight:500}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 5}
+
+/* steps */
+.steps{display:flex;flex-direction:column;gap:16px}
+.step{display:grid;grid-template-columns:64px minmax(0,1fr);gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.step .n{font-family:var(--display);font-weight:800;font-size:28px;color:var(--accent);background:var(--accent-soft);border-radius:14px;height:56px;width:56px;display:grid;place-items:center}
+.step .body{display:flex;flex-direction:column;gap:12px;min-width:0}
+.step .why{color:var(--muted)}
+.step ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.step .check{border-left:4px solid var(--ok);background:var(--ok-soft);padding:10px 14px;border-radius:0 10px 10px 0;font-size:14.5px}
+.step .link{font-size:14px}
+@media (max-width:560px){.step{grid-template-columns:1fr}.step .n{height:44px;width:44px;font-size:22px}}
+
+.note{border-left:4px solid var(--warn);background:var(--warn-soft);padding:14px 16px;border-radius:0 10px 10px 0;display:flex;flex-direction:column;gap:6px}
+.note.green{border-color:var(--ok);background:var(--ok-soft)}
+.note.red{border-color:var(--bad);background:var(--bad-soft)}
+.note strong{font-family:var(--display)}
+
+/* code blocks */
+.codebox{position:relative;background:var(--code-bg);border:1px solid var(--line);border-radius:12px;min-width:0}
+.codebox pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;white-space:pre}
+.codebox .label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px 0 16px;font-family:var(--mono);font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.copy{font:600 12px var(--body);color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer}
+.copy:hover{border-color:var(--accent)}
+
+/* tables */
+.table-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:13px;background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+td code{font-size:12.5px}
+.yes{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}.mid{color:var(--warn);font-weight:600}
+
+/* device chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:4px 10px;border-radius:8px;background:var(--ok-soft);color:var(--ok);border:1px solid transparent}
+.chip.no{background:var(--bad-soft);color:var(--bad)}
+
+/* checklist */
+.todo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.todo{grid-template-columns:1fr}}
+.todo label{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.todo input{margin-top:4px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.progress{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted)}
+.progress .bar{flex:1;height:12px;border-radius:6px;background:var(--surface2);overflow:hidden}
+.progress .bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+@media (prefers-reduced-motion:reduce){.progress .bar span{transition:none}}
+.progress b{font-variant-numeric:tabular-nums;color:var(--fg)}
+.sources{columns:2;column-gap:28px;font-size:14px}
+.sources li{break-inside:avoid;margin-bottom:6px}
+@media (max-width:760px){.sources{columns:1}}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="hero-left">
+    <span class="eyebrow">Phase 2 · Google Cloud setup · checked 22 Nov 2026</span>
+    <h1>Open the door to your Fitbit data, and read your first steps</h1>
+    <p class="lead">In this phase you set up a free Google Cloud project, turn on the Google Health API, create a sign-in for your app, and then read your real Fitbit data in Google's OAuth Playground website. You don't write any code yet. Follow the steps in order and tick each one off as you go.</p>
+  </div>
+  <div class="answer">
+    <span class="eyebrow">What you'll have at the end</span>
+    <h3>A working key to your own health data</h3>
+    <ul>
+      <li>A Google Cloud project named <b>fitbit-track-dev</b></li>
+      <li>The <b>Google Health API</b> turned on</li>
+      <li>A sign-in screen with you added as a test user</li>
+      <li>Your first real reply from Google: your steps</li>
+      <li>Time needed: about 45 minutes. Cost: free.</li>
+    </ul>
+  </div>
+</header>
+
+<!-- MAP -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">The map</span>
+    <h2>Eight steps, in two places</h2>
+    <p class="lead">Steps 0 to 6 happen on your phone and in the Google Cloud Console. Step 7 happens in the OAuth Playground, a Google website that lets you try the API with no code.</p>
+  </div>
+  <div class="diagram" role="img" aria-label="Flow of eight steps: 0 link Google Health on the phone, 1 create project, 2 enable Google Health API, 3 set up the sign-in screen, 4 add yourself as test user, 5 choose data permissions, 6 create the OAuth client, 7 test in OAuth Playground and read your steps.">
+    <svg viewBox="0 0 1240 260" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker></defs>
+      <rect x="10" y="20" width="130" height="220" rx="14" class="zone"/>
+      <text x="75" y="44" text-anchor="middle" class="t-small t-muted">ON YOUR PHONE</text>
+      <rect x="160" y="20" width="900" height="220" rx="14" class="zone"/>
+      <text x="610" y="44" text-anchor="middle" class="t-small t-muted">GOOGLE CLOUD CONSOLE · console.cloud.google.com</text>
+      <rect x="1080" y="20" width="150" height="220" rx="14" class="zone"/>
+      <text x="1155" y="44" text-anchor="middle" class="t-small t-muted">OAUTH PLAYGROUND</text>
+
+      <rect x="22" y="80" width="106" height="110" rx="12" class="box-heart"/>
+      <text x="75" y="112" text-anchor="middle" class="num">0</text>
+      <text x="75" y="138" text-anchor="middle" class="t-title">Link</text>
+      <text x="75" y="158" text-anchor="middle" class="t-small t-muted">Google Health</text>
+      <text x="75" y="174" text-anchor="middle" class="t-small t-muted">to your account</text>
+
+      <g>
+        <rect x="175" y="80" width="130" height="110" rx="12" class="box"/>
+        <text x="240" y="112" text-anchor="middle" class="num">1</text>
+        <text x="240" y="138" text-anchor="middle" class="t-title">Create</text>
+        <text x="240" y="158" text-anchor="middle" class="t-small t-muted">project</text>
+
+        <rect x="323" y="80" width="130" height="110" rx="12" class="box"/>
+        <text x="388" y="112" text-anchor="middle" class="num">2</text>
+        <text x="388" y="138" text-anchor="middle" class="t-title">Enable</text>
+        <text x="388" y="158" text-anchor="middle" class="t-small t-muted">Google Health API</text>
+
+        <rect x="471" y="80" width="130" height="110" rx="12" class="box"/>
+        <text x="536" y="112" text-anchor="middle" class="num">3</text>
+        <text x="536" y="138" text-anchor="middle" class="t-title">Sign-in screen</text>
+        <text x="536" y="158" text-anchor="middle" class="t-small t-muted">app name, External</text>
+
+        <rect x="619" y="80" width="130" height="110" rx="12" class="box"/>
+        <text x="684" y="112" text-anchor="middle" class="num">4</text>
+        <text x="684" y="138" text-anchor="middle" class="t-title">Test user</text>
+        <text x="684" y="158" text-anchor="middle" class="t-small t-muted">add yourself</text>
+
+        <rect x="767" y="80" width="130" height="110" rx="12" class="box"/>
+        <text x="832" y="112" text-anchor="middle" class="num">5</text>
+        <text x="832" y="138" text-anchor="middle" class="t-title">Permissions</text>
+        <text x="832" y="158" text-anchor="middle" class="t-small t-muted">5 read-only scopes</text>
+
+        <rect x="915" y="80" width="130" height="110" rx="12" class="box-accent"/>
+        <text x="980" y="112" text-anchor="middle" class="num">6</text>
+        <text x="980" y="138" text-anchor="middle" class="t-title">OAuth client</text>
+        <text x="980" y="158" text-anchor="middle" class="t-small t-muted">ID + secret</text>
+      </g>
+
+      <rect x="1092" y="80" width="126" height="110" rx="12" class="box-ok"/>
+      <text x="1155" y="112" text-anchor="middle" class="num">7</text>
+      <text x="1155" y="138" text-anchor="middle" class="t-title">First call</text>
+      <text x="1155" y="158" text-anchor="middle" class="t-small t-muted">see your steps</text>
+
+      <path d="M128 135 L170 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M305 135 L318 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M453 135 L466 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M601 135 L614 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M749 135 L762 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M897 135 L910 135" class="arrow" marker-end="url(#ah)"/>
+      <path d="M1045 135 L1087 135" class="arrow" marker-end="url(#ah)"/>
+      <text x="610" y="222" text-anchor="middle" class="t-small t-muted">all free · no code · the Cloud project can belong to a different Google account than your Fitbit</text>
+    </svg>
+  </div>
+</section>
+
+<!-- DEVICE -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Good news first · your device</span>
+    <h2>Your Fitbit Air is supported</h2>
+    <p class="lead">Google's device list for the Health API names the Fitbit Air and says which data types it sends. This replaces the "◐ depends on your model" marks from Phase 1.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <span class="pill ok">✔ Fitbit Air sends these (from Google's table)</span>
+      <div class="chips">
+        <span class="chip">steps</span><span class="chip">distance</span><span class="chip">floors</span><span class="chip">total-calories</span>
+        <span class="chip">active-minutes</span><span class="chip">active-zone-minutes</span><span class="chip">sedentary-period</span>
+        <span class="chip">heart-rate</span><span class="chip">daily-resting-heart-rate</span>
+        <span class="chip">heart-rate-variability</span><span class="chip">daily-heart-rate-variability</span>
+        <span class="chip">sleep</span><span class="chip">oxygen-saturation</span><span class="chip">daily-oxygen-saturation</span>
+        <span class="chip">daily-respiratory-rate</span><span class="chip">respiratory-rate-sleep-summary</span>
+        <span class="chip">daily-sleep-temperature-derivations</span>
+        <span class="chip">vo2-max</span><span class="chip">daily-vo2-max</span><span class="chip">run-vo2-max</span>
+        <span class="chip">exercise</span><span class="chip">swim-lengths-data</span><span class="chip">irregular-rhythm-notification</span>
+      </div>
+    </div>
+    <div class="card">
+      <span class="pill bad">✖ Not in the Fitbit Air list</span>
+      <div class="chips">
+        <span class="chip no">electrocardiogram (ECG)</span>
+        <span class="chip no">daily-heart-rate-zones</span>
+        <span class="chip no">time-in-heart-rate-zone</span>
+        <span class="chip no">altitude</span>
+      </div>
+      <p>So we skip the ECG permission. For heart-rate zones we can still work them out ourselves from your heart-rate data. Weight, water and food are not sensor data; they show up only if you log them yourself.</p>
+      <p><b>What this means for permissions:</b> you need 5 read-only scopes (Step 5). That covers every metric you asked for, including SpO2, sleep stages and active zone minutes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DECISION -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">One choice to know about</span>
+    <h2>"Testing" or "In production"?</h2>
+    <p class="lead">Google gives every new app a publishing status. It only changes how long you stay signed in. Both are free and both are limited to 100 users.</p>
+  </div>
+  <div class="grid2">
+    <div class="card pick">
+      <span class="pill ok">Use now, in Phase 2</span>
+      <h3>Testing</h3>
+      <p>This is the default, and it's what Google's own codelab uses. Only the test users you add can sign in. The catch is that your sign-in (the "refresh token") <b>runs out after 7 days</b>. For today's test that doesn't matter.</p>
+    </div>
+    <div class="card">
+      <span class="pill warn">Switch later, before Phase 5 (sync)</span>
+      <h3>In production</h3>
+      <p>Your sign-in usually lasts until you revoke it or don't use it for about 6 months. Google recommends this so users aren't logged out every week. The app is still "unverified" (fine for 1 person), so you may see a warning screen when you sign in. It's your own app, so that's expected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STEPS -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Do it · step by step</span>
+    <h2>The click-by-click guide</h2>
+    <p class="lead">Words in <span class="ui">grey boxes</span> are the exact labels you'll see on screen. You can use <b>two different Google accounts</b>. Your <b>builder account</b> owns the Cloud project (Steps 1–6). Your <b>Fitbit account</b> is the one linked to your Fitbit Air. It must be added as a test user (Step 4) and used to sign in (Step 7). They can be the same account, but they don't have to be.</p>
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="n">0</div>
+      <div class="body">
+        <h3>Link Google Health to your Google account (on your phone)</h3>
+        <p class="why"><b>Why:</b> the API can only find your data if your Google Health profile is linked to your Google account. If it isn't, every call fails with <code>ACCOUNT_NOT_LINKED</code>.</p>
+        <ol>
+          <li>Open the <b>Google Health</b> app (the app your Fitbit Air syncs with).</li>
+          <li>If it asks, tap <span class="ui">Sign in with Google</span> and pick your Google account.</li>
+          <li>If you had an old Fitbit account, follow the app's prompts to move it over (Google's help link is below).</li>
+          <li>Open the app and let your Fitbit Air <b>sync</b> once, so fresh data is waiting.</li>
+        </ol>
+        <div class="check">✔ Done when the app shows your Google account and today's steps.</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/setup">Setup → "Link Google Health before OAuth consent"</a> · <a href="https://support.google.com/fitbit/answer/14237024">Fitbit account migration help</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">1</div>
+      <div class="body">
+        <h3>Create a Google Cloud project</h3>
+        <p class="why"><b>Why:</b> a project is a free folder in Google Cloud that holds your app's settings and keys. Google suggests a separate project for testing, so we put <code>-dev</code> in the name.</p>
+        <ol>
+          <li>Go to <a href="https://console.cloud.google.com/">console.cloud.google.com</a> and sign in. Accept the terms if this is your first visit.</li>
+          <li>At the top, click the project picker <span class="ui">Select a project</span>, then <span class="ui">New Project</span>.</li>
+          <li><span class="ui">Project name</span>: <code>fitbit-track-dev</code>. <span class="ui">Location</span>: leave it as <span class="ui">No organization</span>.</li>
+          <li>Click <span class="ui">Create</span>. Wait a few seconds, then pick the new project in the project picker.</li>
+        </ol>
+        <div class="check">✔ Done when the top bar shows <b>fitbit-track-dev</b>. You don't need a credit card.</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/codelabs/make-your-first-api-call-using-oauth2-playground">Codelab: first API call</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">2</div>
+      <div class="body">
+        <h3>Turn on the Google Health API</h3>
+        <p class="why"><b>Why:</b> APIs start switched off. This tells Google that your project wants to use this one.</p>
+        <ol>
+          <li>Open the menu (☰) → <span class="ui">APIs &amp; Services</span> → <span class="ui">Library</span>.</li>
+          <li>Search for <code>Google Health API</code> and click it.</li>
+          <li>Click <span class="ui">Enable</span>.</li>
+        </ol>
+        <p>Shortcut: <a href="https://console.developers.google.com/apis/library/health.googleapis.com">open the Google Health API page directly</a> (check that your project is selected at the top).</p>
+        <div class="check">✔ Done when the page shows <b>API Enabled</b> (or a <span class="ui">Manage</span> button).</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/setup">Setup → manual setup</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">3</div>
+      <div class="body">
+        <h3>Set up the sign-in screen (Google Auth Platform)</h3>
+        <p class="why"><b>Why:</b> this is the screen you'll see when your app asks, "Can this app read your health data?"</p>
+        <ol>
+          <li>Go to <span class="ui">APIs &amp; Services</span> → <span class="ui">Credentials</span> → <span class="ui">+ Create Credentials</span> → <span class="ui">OAuth client ID</span>.</li>
+          <li>Click <span class="ui">Configure consent screen</span>. If you see "Google Auth Platform not configured yet", click <span class="ui">Get Started</span>.</li>
+          <li><b>App information</b>: <span class="ui">App name</span> = <code>Fitbit Track</code>. <span class="ui">User support email</span> = your Gmail. Click <span class="ui">Next</span>.</li>
+          <li><b>Audience</b>: choose <span class="ui">External</span>, then <span class="ui">Next</span>. (Internal is only for company Google Workspace accounts.)</li>
+          <li><b>Contact Information</b>: your Gmail, then <span class="ui">Next</span>.</li>
+          <li><b>Finish</b>: tick the box agreeing to the Google API Services User Data Policy, then click <span class="ui">Create</span>.</li>
+        </ol>
+        <div class="check">✔ Done when you see the Google Auth Platform overview with <span class="ui">Branding</span>, <span class="ui">Audience</span>, <span class="ui">Clients</span> and <span class="ui">Data Access</span> in the left menu.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">4</div>
+      <div class="body">
+        <h3>Add yourself as a test user</h3>
+        <p class="why"><b>Why:</b> in Testing mode, only people on this list can sign in. Without it you get "access blocked".</p>
+        <ol>
+          <li>In the left menu click <span class="ui">Audience</span>.</li>
+          <li>Check that <span class="ui">Publishing status</span> says <b>Testing</b> and <span class="ui">User type</span> says <b>External</b>.</li>
+          <li>Under <span class="ui">Test users</span> click <span class="ui">+ Add users</span>, type your Gmail address (the one your Fitbit uses), then click <span class="ui">Save</span>.</li>
+        </ol>
+        <div class="check">✔ Done when your address appears in the Test users list.</div>
+        <p class="link">Shortcut: <a href="https://console.developers.google.com/auth/audience">Audience page</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">5</div>
+      <div class="body">
+        <h3>Choose what data the app may read (scopes)</h3>
+        <p class="why"><b>Why:</b> each "scope" is a permission for one group of data. We only ask to <b>read</b>, never to change, and only for the groups we need.</p>
+        <ol>
+          <li>In the left menu click <span class="ui">Data Access</span> → <span class="ui">Add or remove scopes</span>.</li>
+          <li>In the filter box, search for <code>Google Health API</code>.</li>
+          <li>Tick these 5 lines. Each one ends in <code>.readonly</code>:</li>
+        </ol>
+        <div class="table-box">
+          <table>
+            <thead><tr><th>Scope (full text)</th><th>What it covers for you</th></tr></thead>
+            <tbody>
+              <tr><td><code>https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly</code></td><td>Steps, distance, floors, calories, active zone minutes, workouts, VO2 max</td></tr>
+              <tr><td><code>https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly</code></td><td>Heart rate, resting HR, HRV, SpO2, breathing rate, skin temperature</td></tr>
+              <tr><td><code>https://www.googleapis.com/auth/googlehealth.sleep.readonly</code></td><td>Sleep and sleep stages</td></tr>
+              <tr><td><code>https://www.googleapis.com/auth/googlehealth.profile.readonly</code></td><td>Your profile (for example height, used for reports)</td></tr>
+              <tr><td><code>https://www.googleapis.com/auth/googlehealth.settings.readonly</code></td><td>Your settings (for example units)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ol start="4">
+          <li>Click <span class="ui">Update</span>, then <span class="ui">Save</span> at the bottom of the page.</li>
+        </ol>
+        <div class="note"><strong>Optional, skip for now</strong><span><code>…irn.readonly</code> (irregular rhythm alerts, which your Air supports) and <code>…location.readonly</code> (GPS routes of workouts). We can add them later. Don't add any <code>.writeonly</code> scopes.</span></div>
+        <div class="check">✔ Done when the 5 scopes are listed under "Your sensitive scopes" or "Your restricted scopes".</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/scopes">Scopes</a> · Shortcut: <a href="https://console.developers.google.com/auth/scopes">Data Access page</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">6</div>
+      <div class="body">
+        <h3>Create the OAuth client (your app's ID card)</h3>
+        <p class="why"><b>Why:</b> the client ID tells Google which app is asking. This first client is a <b>Web application</b> type, used only for testing in the Playground. We'll make a separate Android client in Phase 3.</p>
+        <ol>
+          <li>In the left menu click <span class="ui">Clients</span> → <span class="ui">+ Create client</span>. (Or use <span class="ui">APIs &amp; Services</span> → <span class="ui">Credentials</span> → <span class="ui">+ Create Credentials</span> → <span class="ui">OAuth client ID</span>.)</li>
+          <li><span class="ui">Application type</span>: <b>Web application</b>. <span class="ui">Name</span>: <code>Playground test</code>.</li>
+          <li>Leave <span class="ui">Authorized JavaScript origins</span> empty.</li>
+          <li>Under <span class="ui">Authorized redirect URIs</span> click <span class="ui">+ Add URI</span> twice and add:</li>
+        </ol>
+        <div class="codebox"><div class="label"><span>Redirect URI 1</span><button class="copy" type="button" data-copy="https://developers.google.com/oauthplayground">Copy</button></div><pre>https://developers.google.com/oauthplayground</pre></div>
+        <div class="codebox"><div class="label"><span>Redirect URI 2</span><button class="copy" type="button" data-copy="https://www.google.com">Copy</button></div><pre>https://www.google.com</pre></div>
+        <ol start="5">
+          <li>Click <span class="ui">Create</span>. A box shows your <b>Client ID</b> and <b>Client secret</b>.</li>
+          <li><b>Right away</b>, click <span class="ui">Download JSON</span>. Google says you <b>can't see the secret again</b> later.</li>
+        </ol>
+        <div class="note red"><strong>Keep the secret secret</strong><span>Save the JSON file somewhere private (for example your Documents folder), <b>not</b> in <code>D:\fitbit-track</code>, not in chat, and never inside the Android app. Don't paste it to me. If it leaks, open the client and use <span class="ui">+ Add secret</span> to make a new one, then delete the old one.</span></div>
+        <div class="check">✔ Done when you have the JSON file saved and the client appears under <span class="ui">Clients</span>.</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/setup">Setup → "Create a project and an OAuth client"</a> · Shortcut: <a href="https://console.developers.google.com/apis/credentials">Credentials page</a></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">7</div>
+      <div class="body">
+        <h3>Make your first real call in the OAuth Playground</h3>
+        <p class="why"><b>Why:</b> this proves the whole chain works (project, permissions, sign-in, your linked data) before we write any Android code.</p>
+        <h3 style="font-size:16px">7a · Connect the Playground to your client</h3>
+        <ol>
+          <li>Open <a href="https://developers.google.com/oauthplayground/">developers.google.com/oauthplayground</a>.</li>
+          <li>Click the gear icon (<span class="ui">OAuth 2.0 Configuration</span>, top right).</li>
+          <li>Tick <span class="ui">Use your own OAuth credentials</span>. Paste your <span class="ui">OAuth Client ID</span> and <span class="ui">OAuth Client secret</span> from the JSON file. Close the box.</li>
+        </ol>
+        <h3 style="font-size:16px">7b · Sign in and get a token</h3>
+        <ol>
+          <li>In <span class="ui">Step 1 Select &amp; authorize APIs</span>, paste the 5 scopes, separated by spaces, into the <span class="ui">Input your own scopes</span> box at the bottom:</li>
+        </ol>
+        <div class="codebox"><div class="label"><span>5 scopes, one line</span><button class="copy" type="button" data-copy="https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.profile.readonly https://www.googleapis.com/auth/googlehealth.settings.readonly">Copy</button></div><pre>https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.profile.readonly https://www.googleapis.com/auth/googlehealth.settings.readonly</pre></div>
+        <ol start="2">
+          <li>Click <span class="ui">Authorize APIs</span>. Sign in with your <b>Fitbit account</b> (the test user from Step 4), even if the Cloud project belongs to a different account. If Google shows a warning that the app isn't verified, that's your own app: continue. Tick all the permissions and click <span class="ui">Continue</span>.</li>
+          <li>Back in the Playground, <span class="ui">Step 2 Exchange authorization code for tokens</span> opens. Click that button.</li>
+          <li>You now have an <b>access token</b> (it lasts about 1 hour, <code>expires_in: 3599</code>) and a <b>refresh token</b> (about 7 days in Testing, <code>refresh_token_expires_in: 604799</code>).</li>
+        </ol>
+        <h3 style="font-size:16px">7c · Ask for your data</h3>
+        <p>In <span class="ui">Step 3 Configure request to API</span>, set the <span class="ui">HTTP Method</span> and <span class="ui">Request URI</span> as below, then click <span class="ui">Send the request</span>. Try them in this order.</p>
+
+        <div class="table-box">
+          <table>
+            <thead><tr><th style="width:44px">#</th><th>What it tests</th><th>Method</th><th>Request URI</th><th>Good answer looks like</th></tr></thead>
+            <tbody>
+              <tr><td>A</td><td><b>Is your account linked?</b></td><td>GET</td><td><code>https://health.googleapis.com/v4/users/me/identity</code></td><td><code>"healthUserId": "…"</code></td></tr>
+              <tr><td>B</td><td><b>Your recent steps</b></td><td>GET</td><td><code>https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints?filter=steps.interval.civil_start_time &gt;= "2026-11-21T00:00:00"</code></td><td>A <code>dataPoints</code> list with <code>"count"</code> and <code>"displayName"</code> of your device</td></tr>
+              <tr><td>C</td><td><b>Steps per day, last week</b></td><td>POST (body below)</td><td><code>https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp</code></td><td><code>rollupDataPoints</code> with one <code>"countSum"</code> per day</td></tr>
+              <tr><td>D</td><td><b>Your workouts</b></td><td>GET</td><td><code>https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints</code></td><td>Up to 25 workouts with <code>exerciseType</code></td></tr>
+              <tr><td>E</td><td><b>Your sleep</b></td><td>GET</td><td><code>https://health.googleapis.com/v4/users/me/dataTypes/sleep/dataPoints</code></td><td>Sleep records (stages are inside each one)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="codebox"><div class="label"><span>Request body for C (POST)</span><button class="copy" type="button" data-copy-from="bodyC">Copy</button></div><pre id="bodyC">{
+  "range": {
+    "start": { "date": { "year": 2026, "month": 11, "day": 15 },
+               "time": { "hours": 0, "minutes": 0, "seconds": 0, "nanos": 0 } },
+    "end":   { "date": { "year": 2026, "month": 11, "day": 22 },
+               "time": { "hours": 0, "minutes": 0, "seconds": 0, "nanos": 0 } }
+  },
+  "windowSizeDays": 1,
+  "dataSourceFamily": "users/me/dataSourceFamilies/all-sources"
+}</pre></div>
+        <div class="note"><strong>If request B gives an error about the filter</strong><span>Some tools need the spaces and symbols written in a coded form. Try this version instead: <code>…/steps/dataPoints?filter=steps.interval.civil_start_time%20%3E%3D%20%222026-11-21T00%3A00%3A00%22</code></span></div>
+        <div class="check">✔ Done when A shows your <code>healthUserId</code> and B or C shows real step numbers that match the Google Health app.</div>
+        <p class="link">Docs: <a href="https://developers.google.com/health/codelabs/make-your-first-api-call-using-oauth2-playground">Codelab: OAuth Playground</a> · <a href="https://developers.google.com/health/endpoints">Endpoints (list, rollUp, dailyRollUp)</a></p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- TOKEN FLOW -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">What just happened</span>
+    <h2>The sign-in handshake, in pictures</h2>
+    <p class="lead">This same handshake is what the Android app will do in Phase 3. The only difference is that the app will do it instead of the Playground.</p>
+  </div>
+  <div class="diagram" role="img" aria-label="OAuth flow: 1 the Playground sends you to Google sign-in with the scopes. 2 you approve. 3 Google returns a short code to the Playground. 4 the Playground swaps the code plus client secret for an access token and refresh token. 5 the Playground calls the Google Health API with the access token. 6 the API returns your data.">
+    <svg viewBox="0 0 1100 300" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker></defs>
+      <rect x="20" y="30" width="200" height="240" rx="14" class="box"/>
+      <text x="120" y="62" text-anchor="middle" class="t-title">OAuth Playground</text>
+      <text x="120" y="82" text-anchor="middle" class="t-small t-muted">(later: your Android app)</text>
+      <rect x="450" y="30" width="200" height="110" rx="14" class="box-heart"/>
+      <text x="550" y="70" text-anchor="middle" class="t-title">Google sign-in</text>
+      <text x="550" y="92" text-anchor="middle" class="t-small t-muted">accounts.google.com</text>
+      <text x="550" y="110" text-anchor="middle" class="t-small t-muted">you say "Allow"</text>
+      <rect x="450" y="170" width="200" height="100" rx="14" class="box-accent"/>
+      <text x="550" y="208" text-anchor="middle" class="t-title">Google Health API</text>
+      <text x="550" y="230" text-anchor="middle" class="t-small t-muted">health.googleapis.com/v4</text>
+      <rect x="870" y="30" width="210" height="240" rx="14" class="box-ok"/>
+      <text x="975" y="62" text-anchor="middle" class="t-title">You get</text>
+      <text x="890" y="100" class="t-small">• access token: ~1 hour</text>
+      <text x="890" y="126" class="t-small">• refresh token: 7 days</text>
+      <text x="890" y="146" class="t-small">  (Testing) or ~6 months</text>
+      <text x="890" y="166" class="t-small">  unused (In production)</text>
+      <text x="890" y="200" class="t-small">• your Fitbit Air data</text>
+      <text x="890" y="220" class="t-small">  as JSON</text>
+
+      <path d="M220 70 L445 70" class="arrow" marker-end="url(#ah3)"/>
+      <text x="332" y="60" text-anchor="middle" class="num">1 ask with scopes</text>
+      <path d="M445 110 L225 110" class="arrow" marker-end="url(#ah3)"/>
+      <text x="332" y="128" text-anchor="middle" class="num">2–3 you allow → code</text>
+      <path d="M650 85 L865 85" class="arrow" marker-end="url(#ah3)"/>
+      <text x="757" y="75" text-anchor="middle" class="num">4 code + secret → tokens</text>
+      <path d="M220 210 L445 210" class="arrow" marker-end="url(#ah3)"/>
+      <text x="332" y="200" text-anchor="middle" class="num">5 GET + Bearer token</text>
+      <path d="M650 220 L865 220" class="arrow" marker-end="url(#ah3)"/>
+      <text x="757" y="210" text-anchor="middle" class="num">6 your data</text>
+    </svg>
+  </div>
+</section>
+
+<!-- TROUBLESHOOT -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">If something goes wrong</span>
+    <h2>Common errors and how to fix them</h2>
+  </div>
+  <div class="table-box">
+    <table>
+      <thead><tr><th>You see</th><th>What it means</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td><code>Error 400: redirect_uri_mismatch</code></td><td>The Playground address isn't in your client's redirect list</td><td>Step 6: add <code>https://developers.google.com/oauthplayground</code> exactly (no slash at the end), click Save, wait 1–5 minutes</td></tr>
+        <tr><td><code>Error 403: access_denied</code> / "Access blocked"</td><td>You're not on the test users list</td><td>Step 4: add the exact Gmail you signed in with</td></tr>
+        <tr><td><code>invalid_client</code></td><td>Client ID or secret was pasted wrong</td><td>Paste them again from the JSON file, with no extra spaces</td></tr>
+        <tr><td><code>403 PERMISSION_DENIED</code>, "API has not been used" / <code>SERVICE_DISABLED</code></td><td>The API isn't turned on in this project</td><td>Step 2: enable Google Health API in <b>fitbit-track-dev</b></td></tr>
+        <tr><td><code>400 FAILED_PRECONDITION</code>, reason <code>ACCOUNT_NOT_LINKED</code></td><td>Google Health isn't linked to this Google account</td><td>Step 0 in the Google Health app, then sign in again in the Playground</td></tr>
+        <tr><td><code>403</code> "insufficient scopes"</td><td>You didn't tick that permission when signing in</td><td>Step 7b again and tick every box on the consent screen</td></tr>
+        <tr><td><code>401 UNAUTHENTICATED</code></td><td>The access token ran out (after ~1 hour)</td><td>In the Playground Step 2 click <span class="ui">Refresh access token</span></td></tr>
+        <tr><td><code>400 INVALID_ARGUMENT</code></td><td>A typo in the filter or body, or a short data source name</td><td>Copy the request again from this page; use the coded filter version</td></tr>
+        <tr><td><code>200</code> but empty <code>{}</code> or no <code>dataPoints</code></td><td>No data in that time range, or the tracker hasn't synced</td><td>Open the Google Health app to sync, or pick an older date</td></tr>
+        <tr><td><code>429</code> / <code>504</code></td><td>Too many requests, or Google is slow</td><td>Wait a minute and try again</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note green"><strong>When you're done testing</strong><span>The Playground token can really read your health data. When you finish, you can remove its access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> (find "Fitbit Track"). Signing in again later is easy.</span></div>
+</section>
+
+<!-- CHECKLIST -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Your progress</span>
+    <h2>Phase 2 checklist</h2>
+    <p class="lead">Tick each item as you finish it. The ticks are saved in this browser only.</p>
+  </div>
+  <div class="progress"><div class="bar"><span id="pbar"></span></div><b id="ptext">0 of 9</b></div>
+  <div class="todo" id="todo">
+    <label><input type="checkbox" id="c0"> <span>Step 0: Google Health app linked and synced</span></label>
+    <label><input type="checkbox" id="c1"> <span>Step 1: project <b>fitbit-track-dev</b> created</span></label>
+    <label><input type="checkbox" id="c2"> <span>Step 2: Google Health API enabled</span></label>
+    <label><input type="checkbox" id="c3"> <span>Step 3: sign-in screen created (External)</span></label>
+    <label><input type="checkbox" id="c4"> <span>Step 4: my Gmail added as a test user</span></label>
+    <label><input type="checkbox" id="c5"> <span>Step 5: 5 read-only scopes saved</span></label>
+    <label><input type="checkbox" id="c6"> <span>Step 6: Web client created, JSON saved privately</span></label>
+    <label><input type="checkbox" id="c7"> <span>Step 7A: identity call shows healthUserId</span></label>
+    <label><input type="checkbox" id="c8"> <span>Step 7B/C: real step numbers returned</span></label>
+  </div>
+</section>
+
+<!-- REPORT -->
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Before Phase 3</span>
+    <h2>What to tell me when you finish</h2>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>1. Which calls worked</h3><p>For A to E, tell me "worked" or paste the <b>error message</b>. Don't paste tokens, the client secret or your Gmail address.</p></div>
+    <div class="card"><h3>2. Your Android version</h3><p>On your phone: Settings → About phone → Android version. Phase 3 needs it.</p></div>
+    <div class="card"><h3>3. Your OK for Phase 3</h3><p>Phase 3: install Android Studio, create the Kotlin app, add Google sign-in, and show your step count on screen.</p></div>
+  </div>
+  <div class="note"><strong>Still open for Phase 3</strong><span>Google's Health API pages only show "Web application" clients. They say mobile apps must sign in through the system browser (Chrome Custom Tabs on Android) and never an in-app web view. In Phase 3 we'll create the Android client and test which sign-in path works. If needed, our backup is AppAuth with Custom Tabs. The pages also say the paired-devices call (battery, last sync) needs an extra scope but don't name it, so we'll check that in Phase 3.</span></div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">Official sources used</span>
+    <h2>Read more</h2>
+  </div>
+  <ul class="sources">
+    <li><a href="https://developers.google.com/health/setup">Setup: project, OAuth client, test users, token expiry, linking</a></li>
+    <li><a href="https://developers.google.com/health/get-started">Get started</a></li>
+    <li><a href="https://developers.google.com/health/scopes">Scopes</a></li>
+    <li><a href="https://developers.google.com/health/codelabs/make-your-first-api-call-using-oauth2-playground">Codelab: first call with OAuth Playground</a></li>
+    <li><a href="https://developers.google.com/health/endpoints">Endpoints: list, rollUp, dailyRollUp, identity, pairedDevices</a></li>
+    <li><a href="https://developers.google.com/health/data-types/device-compatibility">Device compatibility (Fitbit Air row)</a></li>
+    <li><a href="https://developers.google.com/health/troubleshooting">Troubleshooting</a></li>
+    <li><a href="https://support.google.com/cloud/answer/13463073">When a security review is needed (over 100 users)</a></li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(function(){
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = btn.dataset.copy || (document.getElementById(btn.dataset.copyFrom)||{}).textContent || '';
+      var done = function(){ var o=btn.textContent; btn.textContent='Copied'; setTimeout(function(){btn.textContent=o;},1500); };
+      var fallback = function(){
+        var pre = btn.closest('.codebox').querySelector('pre');
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent='Selected, press Ctrl+C';
+      };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch(e){ fallback(); }
+    });
+  });
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#todo input'));
+  var KEY = 'fitbit-phase2-checks';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+  function update(){
+    var n = boxes.filter(function(b){return b.checked;}).length;
+    document.getElementById('pbar').style.width = (n/boxes.length*100)+'%';
+    document.getElementById('ptext').textContent = n + ' of ' + boxes.length;
+  }
+  boxes.forEach(function(b){
+    if (saved[b.id]) b.checked = true;
+    b.addEventListener('change', function(){
+      saved[b.id] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch(e){}
+      update();
+    });
+  });
+  update();
+})();
+</script>

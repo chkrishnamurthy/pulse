@@ -1,0 +1,204 @@
+package com.fitbittrack.pulse.ui.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.fitbittrack.pulse.ui.model.Stage
+import com.fitbittrack.pulse.ui.model.StageBlock
+import com.fitbittrack.pulse.ui.theme.MonoFamily
+import com.fitbittrack.pulse.ui.theme.PulseTheme
+
+/*
+ * Small hand-drawn charts matching the design canvas. All colours come from the theme,
+ * so every chart works in light and dark mode. Missing values (null) are left as gaps.
+ */
+
+private val axisStyle = TextStyle(fontFamily = MonoFamily, fontSize = 9.sp)
+
+/** Vertical bars with an optional dashed goal line. Bars at or over goal use [color], others [mutedColor]. */
+@Composable
+fun BarChart(
+    values: List<Float?>,
+    labels: List<String>,
+    color: Color,
+    mutedColor: Color,
+    description: String,
+    modifier: Modifier = Modifier,
+    goal: Float? = null,
+    goalLabel: String? = null,
+    height: Dp = 140.dp,
+) {
+    val axis = MaterialTheme.colorScheme.onSurfaceVariant
+    val track = PulseTheme.colors.track
+    val measurer = rememberTextMeasurer()
+    Canvas(modifier.fillMaxWidth().height(height).semantics { contentDescription = description }) {
+        val labelH = 16.dp.toPx()
+        val chartH = size.height - labelH
+        val max = (values.filterNotNull() + listOfNotNull(goal)).maxOrNull()?.takeIf { it > 0 } ?: 1f
+        val n = values.size.coerceAtLeast(1)
+        val slot = size.width / n
+        val barW = (slot * 0.62f).coerceAtMost(34.dp.toPx())
+        val radius = CornerRadius(minOf(barW / 2, 8.dp.toPx()))
+        values.forEachIndexed { i, v ->
+            val x = i * slot + (slot - barW) / 2
+            if (v == null) {
+                drawRoundRect(track, Offset(x, chartH - 4.dp.toPx()), Size(barW, 4.dp.toPx()), radius)
+            } else {
+                val h = (v / max * (chartH - 6.dp.toPx())).coerceAtLeast(3.dp.toPx())
+                val c = if (goal == null || v >= goal) color else mutedColor
+                drawRoundRect(c, Offset(x, chartH - h), Size(barW, h), radius)
+            }
+            labels.getOrNull(i)?.let { drawLabel(measurer, it, i * slot + slot / 2, size.height - labelH / 2, axis) }
+        }
+        if (goal != null) {
+            val y = chartH - goal / max * (chartH - 6.dp.toPx())
+            drawLine(color, Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
+            goalLabel?.let {
+                val layout = measurer.measure(it, axisStyle.copy(color = color))
+                drawText(layout, topLeft = Offset(size.width - layout.size.width, (y - layout.size.height - 2.dp.toPx()).coerceAtLeast(0f)))
+            }
+        }
+    }
+}
+
+/** Line over time. x in 0..1, y in data units. Gaps (null) break the line. */
+@Composable
+fun LineChart(
+    points: List<Pair<Float, Float?>>,
+    color: Color,
+    description: String,
+    modifier: Modifier = Modifier,
+    yMin: Float? = null,
+    yMax: Float? = null,
+    referenceY: Float? = null,
+    referenceLabel: String? = null,
+    xLabels: List<Pair<Float, String>> = emptyList(),
+    height: Dp = 180.dp,
+    bands: List<Triple<Float, Float, Color>> = emptyList(),
+) {
+    val axis = MaterialTheme.colorScheme.onSurfaceVariant
+    val grid = MaterialTheme.colorScheme.outlineVariant
+    val measurer = rememberTextMeasurer()
+    Canvas(modifier.fillMaxWidth().height(height).semantics { contentDescription = description }) {
+        val labelH = if (xLabels.isEmpty()) 0f else 16.dp.toPx()
+        val chartH = size.height - labelH
+        val ys = points.mapNotNull { it.second }
+        val lo = yMin ?: (ys.minOrNull() ?: 0f)
+        val hi = (yMax ?: (ys.maxOrNull() ?: 1f)).let { if (it <= lo) lo + 1f else it }
+        fun py(v: Float) = chartH - (v - lo) / (hi - lo) * (chartH - 8.dp.toPx()) - 4.dp.toPx()
+        fun px(x: Float) = x * size.width
+
+        bands.forEach { (from, to, c) ->
+            val top = py(minOf(to, hi)); val bottom = py(maxOf(from, lo))
+            if (bottom > top) drawRect(c, Offset(0f, top), Size(size.width, bottom - top))
+        }
+        for (k in 0..2) {
+            val y = chartH * k / 2f
+            drawLine(grid, Offset(0f, y.coerceIn(0f, chartH)), Offset(size.width, y.coerceIn(0f, chartH)), 1f)
+        }
+        val path = Path()
+        var open = false
+        points.forEach { (x, y) ->
+            if (y == null) { open = false; return@forEach }
+            if (!open) path.moveTo(px(x), py(y)) else path.lineTo(px(x), py(y))
+            open = true
+        }
+        drawPath(path, color, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        points.lastOrNull { it.second != null }?.let { (x, y) -> drawCircle(color, 4.dp.toPx(), Offset(px(x), py(y!!))) }
+
+        if (referenceY != null && referenceY in lo..hi) {
+            val y = py(referenceY)
+            drawLine(color.copy(alpha = 0.7f), Offset(0f, y), Offset(size.width, y), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 8f)))
+            referenceLabel?.let {
+                val layout = measurer.measure(it, axisStyle.copy(color = color))
+                drawText(layout, topLeft = Offset(size.width - layout.size.width, (y + 3.dp.toPx()).coerceAtMost(chartH - layout.size.height)))
+            }
+        }
+        xLabels.forEach { (x, text) -> drawLabel(measurer, text, (px(x)).coerceIn(14.dp.toPx(), size.width - 14.dp.toPx()), size.height - labelH / 2, axis) }
+    }
+}
+
+/** Tiny trend line for tiles. */
+@Composable
+fun Sparkline(values: List<Float?>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier.fillMaxWidth().height(28.dp)) {
+        val ys = values.filterNotNull()
+        if (ys.size < 2) return@Canvas
+        val lo = ys.min(); val hi = ys.max().let { if (it == lo) lo + 1 else it }
+        val path = Path()
+        var open = false
+        values.forEachIndexed { i, v ->
+            if (v == null) { open = false; return@forEachIndexed }
+            val x = i / (values.size - 1f) * size.width
+            val y = size.height - (v - lo) / (hi - lo) * (size.height - 6.dp.toPx()) - 3.dp.toPx()
+            if (!open) path.moveTo(x, y) else path.lineTo(x, y)
+            open = true
+        }
+        drawPath(path, color, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/** Sleep stages through the night: one row per stage, blocks along time. */
+@Composable
+fun Hypnogram(blocks: List<StageBlock>, totalMinutes: Int, startLabel: String, endLabel: String, modifier: Modifier = Modifier) {
+    val c = PulseTheme.colors
+    val axis = MaterialTheme.colorScheme.onSurfaceVariant
+    val measurer = rememberTextMeasurer()
+    val rows = listOf(Stage.Awake, Stage.Rem, Stage.Light, Stage.Deep)
+    val names = mapOf(Stage.Awake to "AWAKE", Stage.Rem to "REM", Stage.Light to "LIGHT", Stage.Deep to "DEEP")
+    Canvas(modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = "Sleep stages through the night" }) {
+        val left = 46.dp.toPx()
+        val labelH = 16.dp.toPx()
+        val rowH = (size.height - labelH) / rows.size
+        val w = size.width - left
+        rows.forEachIndexed { r, stage ->
+            val color = stageColor(stage, c)
+            val layout = measurer.measure(names.getValue(stage), axisStyle.copy(color = color))
+            drawText(layout, topLeft = Offset(left - layout.size.width - 6.dp.toPx(), r * rowH + (rowH - layout.size.height) / 2))
+        }
+        val total = totalMinutes.coerceAtLeast(1)
+        blocks.forEach { b ->
+            val r = rows.indexOf(b.stage)
+            val x = left + b.startMinute.toFloat() / total * w
+            val bw = ((b.endMinute - b.startMinute).toFloat() / total * w - 1f).coerceAtLeast(2f)
+            drawRoundRect(stageColor(b.stage, c), Offset(x, r * rowH + rowH * 0.15f), Size(bw, rowH * 0.7f), CornerRadius(4.dp.toPx()))
+        }
+        drawLabel(measurer, startLabel, left + 20.dp.toPx(), size.height - labelH / 2, axis)
+        drawLabel(measurer, endLabel, size.width - 24.dp.toPx(), size.height - labelH / 2, axis)
+    }
+}
+
+fun stageColor(stage: Stage, c: com.fitbittrack.pulse.ui.theme.PulseColors): Color = when (stage) {
+    Stage.Awake -> c.heartLabel
+    Stage.Rem -> c.sleep.copy(alpha = 0.55f)
+    Stage.Light -> c.sleep
+    Stage.Deep -> c.sleepDeep
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLabel(
+    measurer: TextMeasurer, text: String, centerX: Float, centerY: Float, color: Color,
+) {
+    val layout = measurer.measure(text, axisStyle.copy(color = color))
+    drawText(layout, topLeft = Offset(centerX - layout.size.width / 2, centerY - layout.size.height / 2))
+}

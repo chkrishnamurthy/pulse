@@ -1,0 +1,234 @@
+<title>Pulse Phase 3 Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide 90% column; numbered steps are a real sequence; code and diagrams scroll in their own boxes */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea; --heart:#c4415a; --heart-soft:#f8e0e5;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#a86a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9; --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a; --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a; --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px;word-break:break-word}
+pre{margin:0;background:var(--code-bg);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.5}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.lead{color:var(--muted);font-size:17px;max-width:80ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:28px}
+.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+.answer{background:var(--accent);color:var(--bg);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.answer ul{margin:0;padding-left:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card p,.card li{color:var(--muted);font-size:14.5px}
+.pill{display:inline-flex;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:fit-content}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:880px;height:auto}
+svg text{font-family:var(--body);fill:var(--fg)}
+svg .m{fill:var(--muted)} svg .s{font-size:12px} svg .t{font-family:var(--display);font-weight:700;font-size:15px}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .hrt{fill:var(--heart-soft);stroke:var(--heart);stroke-width:1.5}
+svg .wrn{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:6 4}
+svg .ar{stroke:var(--accent);stroke-width:2.2;fill:none} svg .hd{fill:var(--accent)}
+svg .num{font-family:var(--mono);font-size:11px;fill:var(--accent)}
+.steps{display:flex;flex-direction:column;gap:14px;counter-reset:s}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 18px 64px;position:relative;display:flex;flex-direction:column;gap:8px;min-width:0}
+.step::before{counter-increment:s;content:counter(s);position:absolute;left:18px;top:18px;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--bg);font:700 14px var(--display);display:flex;align-items:center;justify-content:center}
+.step ul{margin:0;padding-left:18px;color:var(--muted)}
+.note{border-left:4px solid var(--warn);background:var(--warn-soft);padding:14px 16px;border-radius:0 10px 10px 0;display:flex;flex-direction:column;gap:6px}
+.note.green{border-color:var(--ok);background:var(--ok-soft)}
+.table-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:13px;background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+.copyrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.copyrow code{font-size:14px;padding:6px 10px}
+button.copy{font:600 13px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer;min-height:36px}
+button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+    <span class="eyebrow">Phases 3 to 7 · Android app · updated 22 Nov 2026</span>
+    <h1>Your app is built: every screen, sync and widgets</h1>
+    <p class="lead">Two Claude sessions split the work. One built the data side (Google Health calls, local database, background sync). This one built every screen, the light and dark themes and the home-screen widgets. The full app builds on your PC. Here is how to run it, and what still needs you.</p>
+  </div>
+  <div class="answer">
+    <span class="eyebrow" style="color:var(--bg);opacity:.85">Status</span>
+    <ul>
+      <li><b>Done:</b> phases 3 to 7 coded; full debug build passes.</li>
+      <li><b>You can do now:</b> run it on your phone and look around with sample data.</li>
+      <li><b>Waits for you:</b> Phase 2 Step 7, then Part B below, then your real data appears.</li>
+      <li><b>Not yet proven:</b> nothing has talked to the live Google Health API yet.</li>
+    </ul>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">What is in the app now</span><h2>Screens, sync and widgets</h2>
+  <p class="lead">Each screen matches the Pulse design canvas and works in light and dark mode.</p></div>
+  <div class="diagram" role="img" aria-label="Data flow inside the app: background sync downloads from Google Health into the local database; screens and widgets read only from the local database.">
+    <svg viewBox="0 0 1180 220" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="hd"/></marker></defs>
+      <rect x="20" y="60" width="200" height="100" rx="14" class="acc"/><text x="120" y="100" text-anchor="middle" class="t">Google Health API</text><text x="120" y="124" text-anchor="middle" class="s m">your Fitbit Air data</text>
+      <rect x="300" y="60" width="220" height="100" rx="14" class="box"/><text x="410" y="96" text-anchor="middle" class="t">Sync engine</text><text x="410" y="120" text-anchor="middle" class="s m">history download, every 4 h,</text><text x="410" y="138" text-anchor="middle" class="s m">pull-to-refresh, retries</text>
+      <rect x="600" y="60" width="200" height="100" rx="14" class="box"/><text x="700" y="100" text-anchor="middle" class="t">Local database</text><text x="700" y="124" text-anchor="middle" class="s m">Room · works offline</text>
+      <rect x="880" y="20" width="280" height="80" rx="14" class="acc"/><text x="1020" y="56" text-anchor="middle" class="t">8 screens</text><text x="1020" y="78" text-anchor="middle" class="s m">Today, Heart, Sleep, Activity, Trends…</text>
+      <rect x="880" y="120" width="280" height="80" rx="14" class="hrt"/><text x="1020" y="156" text-anchor="middle" class="t">5 home-screen widgets</text><text x="1020" y="178" text-anchor="middle" class="s m">refresh after every sync</text>
+      <path d="M220 110 L295 110" class="ar" marker-end="url(#b)"/>
+      <path d="M520 110 L595 110" class="ar" marker-end="url(#b)"/>
+      <path d="M800 100 L875 65" class="ar" marker-end="url(#b)"/>
+      <path d="M800 120 L875 155" class="ar" marker-end="url(#b)"/>
+    </svg>
+  </div>
+  <div class="grid3">
+    <div class="card"><span class="pill ok">Today</span><p>24-hour day dial (sleep arc + steps per hour), a daily insight against your own 30-day normal, cards you can switch on, off and reorder. Pull down to refresh.</p></div>
+    <div class="card"><span class="pill ok">Heart</span><p>Day / Week / Month. Heart-rate chart with shaded zones, resting heart rate against your normal, HRV, zone minutes.</p></div>
+    <div class="card"><span class="pill ok">Sleep</span><p>Stages through the night, time in each stage, SpO2, breathing rate, skin temperature, bedtimes this week.</p></div>
+    <div class="card"><span class="pill ok">Activity</span><p>Weekly zone minutes, distance, active time, and your workout history.</p></div>
+    <div class="card"><span class="pill ok">Trends</span><p>Week / Month / Year reports: steps and sleep bars against goals, resting heart rate trend, best day, longest sleep.</p></div>
+    <div class="card"><span class="pill ok">Goals and Settings</span><p>Change goals with + and −, units, System / Light / Dark, sync status with Sync now, delete local data, sign out. Every delete asks first.</p></div>
+  </div>
+  <div class="note green"><b>Try it before signing in</b><span>On the welcome screen tap <b>Look around with sample data</b>. Every screen fills with example numbers and shows a "Sample data" banner, so you can judge the design right away. Home-screen widgets: long-press your home screen → Widgets → Pulse (Smart, Steps, Heart, Sleep, Sync).</span></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">What was built</span><h2>The parts of the app</h2>
+  <p class="lead">Each screen asks one "brain" (the view model) for what to show. Sign-in and the Google Health call sit behind it.</p></div>
+  <div class="diagram" role="img" aria-label="App structure: screens talk to MainViewModel, which uses GoogleHealthAuth to get permission from Google and HealthApi to call health.googleapis.com.">
+    <svg viewBox="0 0 1180 300" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="hd"/></marker></defs>
+      <rect x="20" y="30" width="250" height="240" rx="14" class="acc"/>
+      <text x="145" y="62" text-anchor="middle" class="t">Screens (Compose)</text>
+      <text x="145" y="92" text-anchor="middle" class="s">Connect · Today · Settings</text>
+      <text x="145" y="114" text-anchor="middle" class="s m">Heart · Sleep · Activity</text>
+      <text x="145" y="136" text-anchor="middle" class="s m">Trends · Goals</text>
+      <text x="145" y="176" text-anchor="middle" class="s">Pulse theme: light + dark</text>
+      <text x="145" y="198" text-anchor="middle" class="s m">bottom menu (5 tabs)</text>
+      <rect x="350" y="100" width="220" height="100" rx="14" class="box"/>
+      <text x="460" y="138" text-anchor="middle" class="t">MainViewModel</text>
+      <text x="460" y="162" text-anchor="middle" class="s m">holds state: theme,</text>
+      <text x="460" y="180" text-anchor="middle" class="s m">sign-in, test result</text>
+      <rect x="650" y="30" width="230" height="100" rx="14" class="hrt"/>
+      <text x="765" y="66" text-anchor="middle" class="t">GoogleHealthAuth</text>
+      <text x="765" y="90" text-anchor="middle" class="s m">asks for 5 read-only</text>
+      <text x="765" y="108" text-anchor="middle" class="s m">permissions</text>
+      <rect x="650" y="170" width="230" height="100" rx="14" class="box"/>
+      <text x="765" y="206" text-anchor="middle" class="t">HealthApi</text>
+      <text x="765" y="230" text-anchor="middle" class="s m">GET /v4/users/me/identity</text>
+      <text x="765" y="248" text-anchor="middle" class="s m">explains every error</text>
+      <rect x="960" y="30" width="200" height="100" rx="14" class="hrt"/>
+      <text x="1060" y="70" text-anchor="middle" class="t">Google sign-in</text>
+      <text x="1060" y="94" text-anchor="middle" class="s m">consent screen</text>
+      <rect x="960" y="170" width="200" height="100" rx="14" class="acc"/>
+      <text x="1060" y="210" text-anchor="middle" class="t">Google Health API</text>
+      <text x="1060" y="234" text-anchor="middle" class="s m">health.googleapis.com</text>
+      <path d="M270 150 L345 150" class="ar" marker-end="url(#a)"/>
+      <path d="M570 135 L645 85" class="ar" marker-end="url(#a)"/>
+      <path d="M570 165 L645 215" class="ar" marker-end="url(#a)"/>
+      <path d="M880 80 L955 80" class="ar" marker-end="url(#a)"/>
+      <path d="M880 220 L955 220" class="ar" marker-end="url(#a)"/>
+      <text x="917" y="70" text-anchor="middle" class="num">token</text>
+      <text x="917" y="210" text-anchor="middle" class="num">HTTPS</text>
+    </svg>
+  </div>
+  <div class="table-box"><table>
+    <thead><tr><th>File (inside <code>D:\fitbit-track\android</code>)</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>gradle/libs.versions.toml</code></td><td>All library versions in one place (AGP 9.5.2, Kotlin 2.4.21, Compose BOM 2026.09.00, Navigation 2.10.2, Play Services Auth 22.0.0, OkHttp 5.5.1)</td></tr>
+      <tr><td><code>app/build.gradle.kts</code></td><td>App ID <code>com.fitbittrack.pulse</code>, minimum Android 9, target Android 17 (API 37)</td></tr>
+      <tr><td><code>app/src/main/AndroidManifest.xml</code></td><td>Internet permission only. Cloud backup turned off so health data never leaves the phone</td></tr>
+      <tr><td><code>…/ui/theme/Theme.kt</code></td><td>The "Daylight" and "Night ink" colour sets from the design canvas, plus System / Light / Dark switching</td></tr>
+      <tr><td><code>…/ui/navigation/PulseApp.kt</code></td><td>Bottom menu, screen routes, launching Google's consent screen</td></tr>
+      <tr><td><code>…/auth/GoogleHealthAuth.kt</code></td><td>Asks Google for permission. No client ID or secret in the code</td></tr>
+      <tr><td><code>…/data/HealthApi.kt</code></td><td>First real call to Google Health, with plain-English errors</td></tr>
+      <tr><td><code>…/ui/screens/TodayScreen.kt</code></td><td>Today screen with the 24-hour day dial (sample data for now) and the connection test card</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Do this now</span><h2>Open and run the app on your phone</h2>
+  <p class="lead">No Google setup needed for this part. You will see the welcome screen, the themes and the menu. Sign-in will show an error until Part B is done, which is expected.</p></div>
+  <div class="steps">
+    <div class="step"><h3>Open the project</h3><ul><li>Start Android Studio → <b>File → Open</b> → choose the folder <code>D:\fitbit-track\android</code> → <b>OK</b>.</li><li>Wait for "Gradle sync" at the bottom to finish (first time: a few minutes).</li></ul></div>
+    <div class="step"><h3>Turn on developer mode on your phone</h3><ul><li><b>Settings → About phone</b> → tap <b>Build number</b> 7 times.</li><li><b>Settings → System → Developer options</b> → turn on <b>USB debugging</b>.</li></ul></div>
+    <div class="step"><h3>Connect the phone</h3><ul><li>Plug in the USB cable. On the phone, tap <b>Allow</b> on "Allow USB debugging?".</li><li>Your phone's name appears in the device menu at the top of Android Studio.</li></ul></div>
+    <div class="step"><h3>Press Run (green ▶)</h3><ul><li>The Pulse app installs and opens on your phone.</li><li>Try the theme: turn your phone's dark mode on and off; Pulse follows it.</li></ul></div>
+  </div>
+  <div class="note green"><b>What you should see</b><span>Welcome screen with the dial logo and "Continue with Google". Tapping it now shows a "Developer error (10)" message. That is correct: Google does not know the app yet. Part B fixes it.</span></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Part B · after Phase 2 Step 7</span><h2>Let Google recognise the app</h2>
+  <p class="lead">Do this only after the other session confirms test calls A to E worked. Android apps don't use a password or secret. Google recognises the app by two values: its ID and the fingerprint of the key that signed it.</p></div>
+  <div class="grid2">
+    <div class="card"><span class="pill ok">Value 1 · package name</span><div class="copyrow"><code id="pkg">com.fitbittrack.pulse</code><button class="copy" type="button" data-copy="pkg">Copy</button></div><p>Fixed for this app. Don't change it later, or you must redo this step.</p></div>
+    <div class="card"><span class="pill ok">Value 2 · SHA-1 of your debug key</span><div class="copyrow"><code id="sha">0F:6F:83:92:E2:FD:99:DE:9D:FF:92:F7:FC:E6:47:7E:E3:9A:18:F7</code><button class="copy" type="button" data-copy="sha">Copy</button></div><p>Read from this PC's Android debug key. It is public information, not a secret. A release build later needs its own SHA-1.</p></div>
+  </div>
+  <div class="steps">
+    <div class="step"><h3>Open Credentials in the same project</h3><ul><li>Signed in with your <b>builder</b> account, open <a href="https://console.cloud.google.com/apis/credentials">console.cloud.google.com/apis/credentials</a>.</li><li>Check the project picker at the top shows <code>fitbit-tracker-515502</code>.</li></ul></div>
+    <div class="step"><h3>Create an Android client</h3><ul><li><b>+ Create credentials → OAuth client ID</b>.</li><li>Application type: <b>Android</b>. Name: <code>Pulse Android (debug)</code>.</li><li>Paste the package name and the SHA-1 from above → <b>Create</b>.</li><li>No file to download. Nothing to paste into the app.</li></ul></div>
+    <div class="step"><h3>Run the app again and sign in</h3><ul><li>Tap <b>Continue with Google</b>. Google's own screen opens.</li><li>Pick your <b>Fitbit</b> Google account (not the builder account), then allow all 5 permissions.</li><li>Today shows a green <b>Connected</b> pill when Google Health answers.</li></ul></div>
+  </div>
+  <div class="note"><b>Not yet proven</b><span>Google's Health API pages only show web-type clients. This app uses Google's Android sign-in (no secret, no browser tab). If Google refuses it for the Health scopes, we switch to the documented route: AppAuth with the system browser (Chrome Custom Tabs). Only <code>GoogleHealthAuth.kt</code> changes; the screens stay the same.</span></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">If something goes wrong</span><h2>Troubleshooting</h2></div>
+  <div class="table-box"><table>
+    <thead><tr><th>You see</th><th>Meaning</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>Developer error (10)</td><td>Google doesn't know this app's package + SHA-1</td><td>Do Part B. Check the SHA-1 and package name match exactly, in project fitbit-tracker-515502</td></tr>
+      <tr><td>"Not linked to Google Health"</td><td>API said <code>ACCOUNT_NOT_LINKED</code></td><td>Open the Google Health app with the Fitbit account and finish linking (Phase 2, Step 0)</td></tr>
+      <tr><td>Permission refused (403)</td><td>Wrong account, not a test user, or a permission unticked</td><td>Sign in with the Fitbit account; check it is a test user (Step 4); allow all 5 permissions</td></tr>
+      <tr><td>Access token expired (401)</td><td>Tokens last about 1 hour</td><td>Tap Try again; Pulse asks Google for a new one</td></tr>
+      <tr><td>Gradle sync fails on JDK</td><td>Android Studio is using an old Java</td><td><b>Settings → Build → Gradle → Gradle JDK</b> → choose the bundled JetBrains Runtime (or JDK 17+)</td></tr>
+      <tr><td>Phone not shown in Android Studio</td><td>USB debugging off or not allowed</td><td>Replug the cable, accept the prompt on the phone, set USB mode to "File transfer"</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Next</span><h2>What you do next</h2></div>
+  <div class="note green"><b>One list for everything left: <a href="https://claude.ai/artifact/SM9MHp1vEYqJZRwrzRB71w">Fitbit App: Your To-Do</a></b><span>Four jobs: check your account and Android version, create the Android sign-in client, install the app, then connect with your Fitbit account. After your first real sync, send a screenshot of anything that looks wrong and we fix it.</span></div>
+</section>
+
+</div>
+<script>
+document.querySelectorAll('button.copy').forEach(function(b){
+  b.addEventListener('click',function(){
+    var el=document.getElementById(b.getAttribute('data-copy')); var text=el.textContent;
+    function done(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)}
+    function fallback(){var r=document.createRange();r.selectNodeContents(el);var s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press Ctrl+C'}
+    try{navigator.clipboard.writeText(text).then(done,fallback)}catch(e){fallback()}
+  });
+});
+</script>

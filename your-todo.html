@@ -1,0 +1,309 @@
+<title>Fitbit App: Your To-Do</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide 90% column; a numbered click-path, each step a card with "where / click / check" */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea; --heart:#c4415a; --heart-soft:#f8e0e5;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#a86a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9;
+  --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800;letter-spacing:-.01em}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px;word-break:break-word}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.lead{color:var(--muted);font-size:17px;max-width:80ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:28px}
+.ui{font-weight:600;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:0 6px;white-space:nowrap}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px;align-items:stretch}
+.hero-left{display:flex;flex-direction:column;gap:14px;justify-content:center}
+.answer{background:var(--accent);color:var(--bg);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.answer .eyebrow{color:var(--bg);opacity:.85}
+.answer h3{font-size:22px}
+.answer ul{margin:0;padding-left:18px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card p{color:var(--muted);font-size:14.5px}
+.card.pick{border:2px solid var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:fit-content}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+
+/* diagram */
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:980px;height:auto}
+svg text{font-family:var(--body);fill:var(--fg)}
+svg .t-muted{fill:var(--muted)}
+svg .t-small{font-size:12px}
+svg .t-title{font-family:var(--display);font-weight:700;font-size:14px}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .box-accent{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .box-heart{fill:var(--heart-soft);stroke:var(--heart);stroke-width:1.5}
+svg .box-ok{fill:var(--ok-soft);stroke:var(--ok);stroke-width:2}
+svg .arrow{stroke:var(--accent);stroke-width:2.2;fill:none}
+svg .head{fill:var(--accent)}
+svg .num{font-family:var(--mono);font-size:12px;fill:var(--accent);font-weight:500}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:5 5}
+
+/* steps */
+.steps{display:flex;flex-direction:column;gap:16px}
+.step{display:grid;grid-template-columns:64px minmax(0,1fr);gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.step .n{font-family:var(--display);font-weight:800;font-size:28px;color:var(--accent);background:var(--accent-soft);border-radius:14px;height:56px;width:56px;display:grid;place-items:center}
+.step .body{display:flex;flex-direction:column;gap:12px;min-width:0}
+.step .why{color:var(--muted)}
+.step ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.step .check{border-left:4px solid var(--ok);background:var(--ok-soft);padding:10px 14px;border-radius:0 10px 10px 0;font-size:14.5px}
+.step .link{font-size:14px}
+@media (max-width:560px){.step{grid-template-columns:1fr}.step .n{height:44px;width:44px;font-size:22px}}
+
+.note{border-left:4px solid var(--warn);background:var(--warn-soft);padding:14px 16px;border-radius:0 10px 10px 0;display:flex;flex-direction:column;gap:6px}
+.note.green{border-color:var(--ok);background:var(--ok-soft)}
+.note.red{border-color:var(--bad);background:var(--bad-soft)}
+.note strong{font-family:var(--display)}
+
+/* code blocks */
+.codebox{position:relative;background:var(--code-bg);border:1px solid var(--line);border-radius:12px;min-width:0}
+.codebox pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.55;white-space:pre}
+.codebox .label{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px 0 16px;font-family:var(--mono);font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.copy{font:600 12px var(--body);color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer}
+.copy:hover{border-color:var(--accent)}
+
+/* tables */
+.table-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:13px;background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+td code{font-size:12.5px}
+.yes{color:var(--ok);font-weight:600}.no{color:var(--bad);font-weight:600}.mid{color:var(--warn);font-weight:600}
+
+/* device chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--mono);font-size:12.5px;padding:4px 10px;border-radius:8px;background:var(--ok-soft);color:var(--ok);border:1px solid transparent}
+.chip.no{background:var(--bad-soft);color:var(--bad)}
+
+/* checklist */
+.todo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.todo{grid-template-columns:1fr}}
+.todo label{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.todo input{margin-top:4px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.progress{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted)}
+.progress .bar{flex:1;height:12px;border-radius:6px;background:var(--surface2);overflow:hidden}
+.progress .bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+@media (prefers-reduced-motion:reduce){.progress .bar span{transition:none}}
+.progress b{font-variant-numeric:tabular-nums;color:var(--fg)}
+.sources{columns:2;column-gap:28px;font-size:14px}
+.sources li{break-inside:avoid;margin-bottom:6px}
+@media (max-width:760px){.sources{columns:1}}
+</style>
+<div class="wrap">
+
+<header class="hero">
+  <div class="hero-left">
+    <span class="eyebrow">Your to-do list · updated 22 Nov 2026</span>
+    <h1>Only 4 things left that need you</h1>
+    <p class="lead">Claude built everything else: the data download, the offline database, background sync, all the screens and the home-screen widgets. These 4 jobs need your hands, your phone or your Google login, so nobody else can do them. Do them in order. Total time: about 25 minutes.</p>
+  </div>
+  <div class="answer">
+    <span class="eyebrow">Already done for you</span>
+    <h3>The app is built</h3>
+    <ul>
+      <li>Google Cloud project, API, sign-in screen, test user and permissions ✔</li>
+      <li>Android app "Pulse", ready to install ✔</li>
+      <li>Data download, offline database, sync every 4 hours ✔ (17 tests pass)</li>
+      <li>Screens: Today, Heart, Sleep, Activity, Trends, Goals, plus widgets ✔</li>
+    </ul>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <span class="eyebrow">The map</span>
+    <h2>Your 4 jobs</h2>
+  </div>
+  <div class="diagram" role="img" aria-label="Four jobs in order: 1 check the Google Health app on your phone, 2 create the Android sign-in in Google Cloud, 3 install the app on your phone, 4 sign in and switch to In production.">
+    <svg viewBox="0 0 1200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker></defs>
+      <rect x="20" y="40" width="250" height="120" rx="14" class="box-heart"/>
+      <text x="145" y="78" text-anchor="middle" class="num">JOB 1 · phone · 2 min</text>
+      <text x="145" y="106" text-anchor="middle" class="t-title">Check Google Health</text>
+      <text x="145" y="128" text-anchor="middle" class="t-small t-muted">uses your Fitbit account</text>
+      <rect x="320" y="40" width="250" height="120" rx="14" class="box"/>
+      <text x="445" y="78" text-anchor="middle" class="num">JOB 2 · computer · 5 min</text>
+      <text x="445" y="106" text-anchor="middle" class="t-title">Android sign-in</text>
+      <text x="445" y="128" text-anchor="middle" class="t-small t-muted">in Google Cloud Console</text>
+      <rect x="620" y="40" width="250" height="120" rx="14" class="box"/>
+      <text x="745" y="78" text-anchor="middle" class="num">JOB 3 · phone · 10 min</text>
+      <text x="745" y="106" text-anchor="middle" class="t-title">Install the app</text>
+      <text x="745" y="128" text-anchor="middle" class="t-small t-muted">copy 1 file to the phone</text>
+      <rect x="920" y="40" width="260" height="120" rx="14" class="box-ok"/>
+      <text x="1050" y="78" text-anchor="middle" class="num">JOB 4 · phone + computer · 5 min</text>
+      <text x="1050" y="106" text-anchor="middle" class="t-title">Sign in, then go live</text>
+      <text x="1050" y="128" text-anchor="middle" class="t-small t-muted">"In production" mode</text>
+      <path d="M270 100 L315 100" class="arrow" marker-end="url(#ah)"/>
+      <path d="M570 100 L615 100" class="arrow" marker-end="url(#ah)"/>
+      <path d="M870 100 L915 100" class="arrow" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+  <div class="note green"><strong>You can skip the Playground test (Phase 2, Step 7)</strong><span>Step 7 was only a check. When you sign in, the app runs the same "is my account linked?" test itself and tells you in plain words if something is wrong. Do Step 7 only if the app shows an error you can't fix.</span></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Do it</span><h2>Step by step</h2></div>
+  <div class="steps">
+
+    <div class="step"><div class="n">1</div><div class="body">
+      <h3>Check the Google Health app uses your Fitbit account</h3>
+      <ol>
+        <li>On your phone, open the <b>Google Health</b> (Fitbit) app.</li>
+        <li>Tap your profile picture. It should show your <b>Fitbit Gmail</b>.</li>
+        <li>If it asks, tap <span class="ui">Sign in with Google</span> and pick the Fitbit account.</li>
+        <li>Let your Fitbit Air sync once.</li>
+        <li>Check your Android version: Settings → About phone. Pulse needs <b>Android 9 or newer</b>.</li>
+      </ol>
+      <div class="check">✔ Done when the app shows your Fitbit account and today's steps.</div>
+    </div></div>
+
+    <div class="step"><div class="n">2</div><div class="body">
+      <h3>Create the Android sign-in (Google Cloud Console)</h3>
+      <p class="why"><b>Why:</b> Google lets the app ask for your data only if it knows the app's name and its digital fingerprint. No secret is needed, and nothing secret goes into the app.</p>
+      <ol>
+        <li>On your computer, sign in to Cloud Console with your <b>current (builder) account</b> and open <a href="https://console.cloud.google.com/auth/clients?project=fitbit-tracker-515502">Clients for fitbit-tracker-515502</a>.</li>
+        <li>Click <span class="ui">+ Create client</span>.</li>
+        <li><span class="ui">Application type</span>: <b>Android</b>. <span class="ui">Name</span>: <code>Pulse Android</code>.</li>
+        <li><span class="ui">Package name</span>: paste this:</li>
+      </ol>
+      <div class="codebox"><div class="label"><span>Package name</span><button class="copy" type="button" data-copy="com.fitbittrack.pulse">Copy</button></div><pre>com.fitbittrack.pulse</pre></div>
+      <ol start="5"><li><span class="ui">SHA-1 certificate fingerprint</span>: paste this. It's the fingerprint of this computer's build key, which signed your app file.</li></ol>
+      <div class="codebox"><div class="label"><span>SHA-1 fingerprint</span><button class="copy" type="button" data-copy="0F:6F:83:92:E2:FD:99:DE:9D:FF:92:F7:FC:E6:47:7E:E3:9A:18:F7">Copy</button></div><pre>0F:6F:83:92:E2:FD:99:DE:9D:FF:92:F7:FC:E6:47:7E:E3:9A:18:F7</pre></div>
+      <ol start="6"><li>Click <span class="ui">Create</span>. There's no secret to download this time.</li></ol>
+      <div class="check">✔ Done when <b>Pulse Android</b> appears in the Clients list with the type Android.</div>
+    </div></div>
+
+    <div class="step"><div class="n">3</div><div class="body">
+      <h3>Install the app on your phone</h3>
+      <p class="why">You don't need Android Studio. The app is one file, about 40 MB, already built on this computer:</p>
+      <div class="codebox"><div class="label"><span>App file</span><button class="copy" type="button" data-copy="D:\fitbit-track\android\app\build\outputs\apk\debug\app-debug.apk">Copy</button></div><pre>D:\fitbit-track\android\app\build\outputs\apk\debug\app-debug.apk</pre></div>
+      <ol>
+        <li>Copy the file to your phone. Either use a USB cable (phone in "File transfer" mode, put the file in <b>Downloads</b>), or upload it to your own Google Drive and open it on the phone.</li>
+        <li>On the phone, open <b>Files</b> → <b>Downloads</b> → tap <code>app-debug.apk</code>.</li>
+        <li>If Android blocks installing unknown apps, tap <span class="ui">Settings</span> → turn on <span class="ui">Allow from this source</span> → go back.</li>
+        <li>Tap <span class="ui">Install</span>. If Play Protect warns you, tap <span class="ui">More details</span> → <span class="ui">Install anyway</span>. It's your own app.</li>
+      </ol>
+      <div class="check">✔ Done when the <b>Pulse</b> icon is on your phone. Until you sign in, it shows sample data with a "Sample data" label.</div>
+    </div></div>
+
+    <div class="step"><div class="n">4</div><div class="body">
+      <h3>Sign in, then switch to "In production"</h3>
+      <ol>
+        <li>Open <b>Pulse</b> → tap <span class="ui">Connect</span>.</li>
+        <li>Google asks which account to use: pick your <b>Fitbit account</b>.</li>
+        <li>If you see "Google hasn't verified this app", tap <span class="ui">Continue</span>.</li>
+        <li>Tick <b>all</b> permission boxes → <span class="ui">Continue</span>.</li>
+        <li>Pulse checks your account and starts downloading your history. The first download takes a few minutes, and you can watch its progress on the Sync screen.</li>
+      </ol>
+      <p><b>Then, so you aren't signed out every 7 days:</b></p>
+      <ol start="6">
+        <li>On your computer, open <a href="https://console.cloud.google.com/auth/audience?project=fitbit-tracker-515502">Audience</a> → click <span class="ui">Publish app</span> → <span class="ui">Confirm</span>.</li>
+        <li>Publishing status now says <b>In production</b>. The app is still private: it's limited to 100 users and nobody else knows it exists.</li>
+        <li>In Pulse, sign out and Connect once more, so you get the long-lasting sign-in.</li>
+      </ol>
+      <div class="check">✔ Done when Pulse shows your real steps, heart rate and sleep, and Audience says In production.</div>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">If the app shows an error</span><h2>What the message means</h2></div>
+  <div class="table-box"><table>
+    <thead><tr><th>Pulse says</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>Developer error (10)</td><td>Job 2 isn't done, or there's a typo in the package name or SHA-1. Check the Android client.</td></tr>
+      <tr><td>Not linked to Google Health yet</td><td>Job 1: sign in to the Google Health app with the Fitbit account.</td></tr>
+      <tr><td>Permission refused (403)</td><td>You picked the wrong account, or didn't tick every box. Sign out, then Connect again with the Fitbit account.</td></tr>
+      <tr><td>Access blocked</td><td>The Fitbit Gmail isn't in Test users (Phase 2, Step 4).</td></tr>
+      <tr><td>Sign in again</td><td>The app is still in Testing mode (7-day limit). Do the "In production" part of Job 4.</td></tr>
+      <tr><td>No data, empty screens</td><td>Open the Google Health app so the tracker syncs, then pull down to refresh in Pulse.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><strong>Not tested with real data yet</strong><span>The app hasn't talked to the real Google Health API yet, because that needs your sign-in. Some numbers, like SpO2, skin temperature or workouts, may look different from the Google Health app at first. Tell Claude what you see, or send a screenshot, and it gets fixed.</span></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Your progress</span><h2>Checklist</h2></div>
+  <div class="progress"><div class="bar"><span id="pbar"></span></div><b id="ptext">0 of 4</b></div>
+  <div class="todo" id="todo">
+    <label><input type="checkbox" id="j1"> <span>Job 1: Google Health app uses the Fitbit account, Android 9+</span></label>
+    <label><input type="checkbox" id="j2"> <span>Job 2: Android client "Pulse Android" created</span></label>
+    <label><input type="checkbox" id="j3"> <span>Job 3: Pulse installed on the phone</span></label>
+    <label><input type="checkbox" id="j4"> <span>Job 4: signed in, real data showing, In production</span></label>
+  </div>
+</section>
+</div>
+<script>
+(function(){
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = btn.dataset.copy || (document.getElementById(btn.dataset.copyFrom)||{}).textContent || '';
+      var done = function(){ var o=btn.textContent; btn.textContent='Copied'; setTimeout(function(){btn.textContent=o;},1500); };
+      var fallback = function(){
+        var pre = btn.closest('.codebox').querySelector('pre');
+        var r = document.createRange(); r.selectNodeContents(pre);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent='Selected, press Ctrl+C';
+      };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch(e){ fallback(); }
+    });
+  });
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#todo input'));
+  var KEY = 'fitbit-user-jobs';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+  function update(){
+    var n = boxes.filter(function(b){return b.checked;}).length;
+    document.getElementById('pbar').style.width = (n/boxes.length*100)+'%';
+    document.getElementById('ptext').textContent = n + ' of ' + boxes.length;
+  }
+  boxes.forEach(function(b){
+    if (saved[b.id]) b.checked = true;
+    b.addEventListener('change', function(){
+      saved[b.id] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch(e){}
+      update();
+    });
+  });
+  update();
+})();
+</script>

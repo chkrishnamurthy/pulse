@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Pulse" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/pulse_ground</item>
+    </style>
+    <color name="pulse_ground">#0B1018</color>
+</resources>
