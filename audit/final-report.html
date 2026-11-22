@@ -1,0 +1,202 @@
+<title>Pulse Audit Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide 90% column; summary numbers first, then phases, details, risks, your actions */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#a86a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9;
+  --hi:#b3362f; --med:#c07a00; --lo:#4f6f9a; --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --hi:#f08a80; --med:#f0b452; --lo:#93b4e0; --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a;
+  --hi:#f08a80; --med:#f0b452; --lo:#93b4e0; --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:36px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,42px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(21px,2.4vw,28px);font-weight:800}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.lead{color:var(--muted);font-size:16.5px;max-width:85ch}
+section{display:flex;flex-direction:column;gap:16px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:26px}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--display);font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{color:var(--muted);font-size:13.5px}
+.bars{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.bar-row{display:grid;grid-template-columns:90px 1fr 120px;gap:12px;align-items:center;font-size:14px}
+.track{height:18px;border-radius:9px;background:var(--surface2);overflow:hidden;display:flex}
+.track i{display:block;height:100%}
+.bar-row b{font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.phases{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.phases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.phases,.stats{grid-template-columns:1fr}}
+.phase{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.phase .n{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.phase p{color:var(--muted);font-size:14px}
+.pill{display:inline-flex;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;width:fit-content;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.sev{font-weight:700;font-size:12px}.sev.h{color:var(--hi)}.sev.m{color:var(--med)}.sev.l{color:var(--lo)}
+.table-box{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:14px}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-size:12.5px;background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+td.id{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card ul,.card ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.card li{color:var(--muted);font-size:14.5px}
+.card li b{color:var(--fg)}
+.note{border-left:4px solid var(--warn);background:var(--warn-soft);padding:14px 16px;border-radius:0 10px 10px 0;display:flex;flex-direction:column;gap:6px}
+.note.green{border-color:var(--ok);background:var(--ok-soft)}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+  <span class="eyebrow">Pulse · full audit and fixes · 22 Nov 2026</span>
+  <h1>Pulse audit: 41 issues found, 38 fixed and tested</h1>
+  <p class="lead">Two Claude sessions audited the whole Android app. Claude 1 took the screens, sign-in and widgets; Claude 2 took the data layer and sync. Each also reviewed the other's code. Every fix was compiled, unit-tested and linted together in one final run. Nothing has run on a real phone or against the live Google Health API yet, because that needs your steps.</p>
+</header>
+
+<section>
+  <div class="stats">
+    <div class="stat"><b>41</b><span>issues found</span></div>
+    <div class="stat"><b style="color:var(--ok)">38</b><span>fixed and verified</span></div>
+    <div class="stat"><b style="color:var(--warn)">3</b><span>open: 1 accepted, 1 deferred, 1 needs you</span></div>
+    <div class="stat"><b>60 / 60</b><span>unit tests pass</span></div>
+    <div class="stat"><b>0</b><span>lint errors</span></div>
+  </div>
+  <div class="bars" role="img" aria-label="Issues by severity: High 8 of 8 fixed; Medium 16, 15 fixed, 1 blocked; Low 17, 15 fixed, 2 open">
+    <div class="legend"><span><i class="sw" style="background:var(--ok)"></i>Fixed</span><span><i class="sw" style="background:var(--warn)"></i>Open or blocked</span></div>
+    <div class="bar-row"><span class="sev h">High</span><div class="track"><i style="width:47.1%;background:var(--ok)"></i></div><b>8 of 8 fixed</b></div>
+    <div class="bar-row"><span class="sev m">Medium</span><div class="track"><i style="width:88.2%;background:var(--ok)"></i><i style="width:5.9%;background:var(--warn)"></i></div><b>15 of 16 fixed</b></div>
+    <div class="bar-row"><span class="sev l">Low</span><div class="track"><i style="width:88.2%;background:var(--ok)"></i><i style="width:11.8%;background:var(--warn)"></i></div><b>15 of 17 fixed</b></div>
+  </div>
+  <p class="lead" style="font-size:14px">No Critical issues were found. Bar length is the number of issues, on one scale (17 = full width).</p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">How the work ran</span><h2>Phases completed</h2></div>
+  <div class="phases">
+    <div class="phase"><span class="n">Phase 0</span><h3>Backup</h3><p>Git repository created. Baseline commit <code>5f8ec97</code> before any change.</p></div>
+    <div class="phase"><span class="n">Phase 1</span><h3>Audit</h3><p>Both sessions read every file in their area and cross-reviewed the other's. 2 trackers in <code>audit/</code>.</p></div>
+    <div class="phase"><span class="n">Phase 2</span><h3>High fixes</h3><p>Sign-out, offline start, sync crashes, partial permissions, delete during sync, tests, release build.</p></div>
+    <div class="phase"><span class="n">Phase 3</span><h3>Medium and Low</h3><p>Navigation, midnight rollover, units, accessibility, lint, backup rules, dead code.</p></div>
+    <div class="phase"><span class="n">Phase 4</span><h3>Final check</h3><p>One combined run: tests, lint, debug and release builds. All green.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">The important ones</span><h2>High-severity issues (all fixed)</h2></div>
+  <div class="table-box"><table>
+    <thead><tr><th>ID</th><th>What was wrong</th><th>Root cause</th><th>Fix</th><th>Verified by</th></tr></thead>
+    <tbody>
+      <tr><td class="id">U-001</td><td>Sign-out didn't really sign out. The next launch silently signed back in and synced again.</td><td>Only in-memory state was cleared; Google's permission stayed.</td><td>Sign-out now stops sync, deletes local data, revokes the permission at Google, and forgets the account.</td><td>Compile + review; revoke needs a device</td></tr>
+      <tr><td class="id">U-002</td><td>Offline, the app opened on the sign-in screen, so your saved data was unreachable.</td><td>"Signed in" depended on a live Google call at every start.</td><td>The app remembers the connected account and opens on Today with saved data. A token is fetched in the background.</td><td>Compile + review; needs a device</td></tr>
+      <tr><td class="id">D-001</td><td>"Delete data" during a running sync let the sync put the data back.</td><td>The delete didn't wait for or stop the sync.</td><td>Delete stops the sync first and runs exclusively.</td><td>SyncEngineTest</td></tr>
+      <tr><td class="id">D-002</td><td>"Syncing…" could stay on screen forever.</td><td>The "running" state was saved to disk; a crash or closed app never cleared it.</td><td>Running state is reset on start; every error path ends the sync.</td><td>SyncEngineTest</td></tr>
+      <tr><td class="id">D-003</td><td>Unticking one permission stopped ALL data from updating.</td><td>One refused data type failed the whole sync.</td><td>A refused type is skipped and the rest still sync. Only a full refusal fails.</td><td>SyncEngineTest</td></tr>
+      <tr><td class="id">D-004</td><td>Daily health values (HRV, SpO2, breathing) could fail to load.</td><td>The date filter format was only documented for one type.</td><td>Falls back to a safer filter when Google rejects the first.</td><td>SyncEngineTest</td></tr>
+      <tr><td class="id">D-010</td><td>The sync engine had no tests.</td><td>Not written yet.</td><td>16 tests: token refused, account not linked, partial history, time zones, daylight saving.</td><td>16/16 pass</td></tr>
+      <tr><td class="id">D-011</td><td>The release (shrunk) build was never checked.</td><td>Not built before.</td><td>Release build with R8 and resource shrinking: 4.3 MB.</td><td>assembleRelease passes (not run on a device)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Everything else that was fixed</span><h2>Medium and Low fixes</h2></div>
+  <div class="grid2">
+    <div class="card"><h3>Screens, sign-in and widgets (Claude 1)</h3><ul>
+      <li><b>Back button</b> now returns to Today, then exits. It used to cycle through every tab visited.</li>
+      <li><b>Midnight:</b> screens switch to the new day without a restart. Covered by a test with a fake clock.</li>
+      <li><b>Status bar</b> stays readable when you force Light or Dark mode.</li>
+      <li><b>Settings:</b> "Connect Google account" button, a plain-English connection check (for example "account not linked"), a first-sync progress card.</li>
+      <li><b>Miles setting</b> now applies on Today and Trends too.</li>
+      <li><b>Accessibility:</b> labels on the reorder buttons; the insight dot is green for good news.</li>
+      <li><b>Lint:</b> language-change bugs, a widget layout split for Android 12+, backup turned off on Android 9–11 too.</li>
+      <li><b>27 new UI tests</b> for reports, formatting, mappers, the smart widget and day rollover.</li>
+    </ul></div>
+    <div class="card"><h3>Data and sync (Claude 2)</h3><ul>
+      <li><b>Deleted sessions:</b> sleep or workouts removed at Google are now removed in the app too.</li>
+      <li><b>Heart-rate refresh</b> is now one database transaction (no half-empty day).</li>
+      <li><b>Pull-to-refresh</b> no longer waits minutes behind the first history download.</li>
+      <li><b>Widgets</b> clear themselves after "Delete data" or sign-out.</li>
+      <li><b>Rate-limit waits</b> are capped, so a bad server reply can't stall sync for hours.</li>
+      <li><b>Sign-in errors</b> tell "no internet" from "sign in again" reliably.</li>
+      <li><b>Release build</b> shrinks resources as well as code.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Proof</span><h2>Tests executed</h2>
+  <p class="lead">Command, run once with both sessions' code together at 09:10: <code>gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease</code>. Result: BUILD SUCCESSFUL.</p></div>
+  <div class="table-box"><table>
+    <thead><tr><th>Test suite</th><th>Covers</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>HealthApiTest</td><td>Retries, back-off, plain-English errors</td><td><span class="pill ok">5 / 5</span></td></tr>
+      <tr><td>ParsersTest</td><td>Reading Google's JSON for every data type</td><td><span class="pill ok">12 / 12</span></td></tr>
+      <tr><td>SyncEngineTest</td><td>Partial permissions, delete during sync, time zones, DST, stuck status</td><td><span class="pill ok">16 / 16</span></td></tr>
+      <tr><td>MappersTest</td><td>Data → screens: insights, sleep stages, wake date, sync status</td><td><span class="pill ok">9 / 9</span></td></tr>
+      <tr><td>ReportsTest</td><td>Weekly / monthly / yearly averages, gaps, best day</td><td><span class="pill ok">6 / 6</span></td></tr>
+      <tr><td>FormatTest</td><td>Dashes for missing data, km/mi, "12 min ago"</td><td><span class="pill ok">5 / 5</span></td></tr>
+      <tr><td>SmartWidgetTest</td><td>Morning / day / evening widget states</td><td><span class="pill ok">5 / 5</span></td></tr>
+      <tr><td>DashboardViewModelTest</td><td>Midnight rollover, sample → real data switch</td><td><span class="pill ok">2 / 2</span></td></tr>
+      <tr><td>Android lint</td><td>Whole app</td><td><span class="pill ok">0 errors</span> <span class="pill warn">2 warnings (newer versions available, deferred)</span></td></tr>
+      <tr><td>Release build</td><td>R8 code + resource shrinking</td><td><span class="pill ok">Builds, 4.3 MB</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Honest limits</span><h2>Remaining risks and open items</h2></div>
+  <div class="table-box"><table>
+    <thead><tr><th>ID</th><th>Item</th><th>Status</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td class="id">D-013</td><td>Nothing has run against the live Google Health API: page names, date meanings, background token refresh.</td><td><span class="pill bad">Needs you</span></td><td>Needs your phone, your account and the steps below. The first real sync confirms it.</td></tr>
+      <tr><td class="id">R-001</td><td>Google may refuse Android-style sign-in for the Health permissions (its docs only show web clients).</td><td><span class="pill bad">Needs you</span></td><td>Only a real sign-in shows it. Fallback is ready: browser sign-in, one file to change.</td></tr>
+      <tr><td class="id">R-002</td><td>With 2 Google accounts on your phone, pick the <b>Fitbit</b> account on Google's screen.</td><td><span class="pill warn">Your attention</span></td><td>The app now shows which account is connected in Settings.</td></tr>
+      <tr><td class="id">D-012</td><td>History search stops after 6 months with no data at all.</td><td><span class="pill warn">Accepted</span></td><td>Keeps the first sync fast. Only matters if you stopped wearing a tracker for 6+ months.</td></tr>
+      <tr><td class="id">D-016</td><td>Newer Gradle (9.9.2) and Compose BOM (2026.11.01) exist.</td><td><span class="pill warn">Deferred</span></td><td>No upgrades until the app has run once on your phone.</td></tr>
+      <tr><td class="id">Repo</td><td>Git HEAD doesn't compile on its own. Claude 2's fixes are saved on disk but not committed.</td><td><span class="pill warn">Needs a word from you</span></td><td>Claude 2 commits only when you ask it directly. The working folder builds and passes all tests as it is.</td></tr>
+      <tr><td class="id">I-001…006</td><td>Design follow-ups: bundled fonts, widgets following the app theme, translations, release signing key, light-mode canvas drawings.</td><td><span class="pill warn">Deferred</span></td><td>You said design work comes later. The signing key needs a password you choose.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="eyebrow">Only what needs you</span><h2>Your actions</h2></div>
+  <div class="grid2">
+    <div class="card"><h3>To use the app</h3><ol>
+      <li>Follow <b>Fitbit App: Your To-Do</b> (4 jobs: check account and Android version, create the Android sign-in client, install the APK, connect).</li>
+      <li>After the first sync, send a screenshot of anything that looks wrong. That closes D-013 and R-001.</li>
+    </ol></div>
+    <div class="card"><h3>To keep the code safe</h3><ol>
+      <li>Tell the <b>Fitbit tracking application context</b> session: "commit your changes". Then the repository matches what was tested.</li>
+    </ol></div>
+  </div>
+  <div class="note green"><b>Nothing else is needed from you.</b><span>No passwords, keys or business decisions are pending. Detailed trackers: <code>audit/ui-issues.md</code> and <code>audit/data-issues.md</code>.</span></div>
+</section>
+
+</div>
