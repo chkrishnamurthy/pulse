@@ -1,24 +1,23 @@
 package com.fitbittrack.pulse.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitbittrack.pulse.ui.components.BigValue
+import com.fitbittrack.pulse.ui.components.CardHeader
+import com.fitbittrack.pulse.ui.components.DetailPage
+import com.fitbittrack.pulse.ui.components.ListRow
+import com.fitbittrack.pulse.ui.components.PulseIcons
+import com.fitbittrack.pulse.ui.components.RowGroup
+import com.fitbittrack.pulse.ui.components.TileRow
+import com.fitbittrack.pulse.ui.model.MetricKind
 import com.fitbittrack.pulse.ui.components.LineChart
 import com.fitbittrack.pulse.ui.components.MetricTile
 import com.fitbittrack.pulse.ui.components.ProgressBar
 import com.fitbittrack.pulse.ui.components.PulseCard
-import com.fitbittrack.pulse.ui.components.PulsePage
-import com.fitbittrack.pulse.ui.components.SampleBanner
-import com.fitbittrack.pulse.ui.components.ScreenHeader
 import com.fitbittrack.pulse.ui.components.Segmented
 import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.model.HeartUi
@@ -29,24 +28,24 @@ import java.util.Locale
 
 @Composable
 fun HeartScreen(
-    heart: HeartUi,
+    heart: HeartUi?,
     isSample: Boolean,
     contentPadding: PaddingValues,
     onRangeChange: (Range) -> Unit,
+    onOpenLive: () -> Unit,
+    onBack: () -> Unit,
+    onMetric: (MetricKind) -> Unit,
 ) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    PulsePage(contentPadding) {
-        ScreenHeader("Heart", headline(heart), c.heartLabel)
-        if (isSample) SampleBanner()
+    DetailPage("Heart rate", contentPadding, onBack) {
+        if (heart == null) return@DetailPage
         Segmented(Range.entries, heart.range, { it.label }, onRangeChange)
 
         if (heart.range == Range.Day) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
-                Column { Text("Latest", style = MaterialTheme.typography.bodyMedium, color = muted); BigValue(Fmt.count(heart.latestBpm), "bpm", 40) }
-                Column { Text("Range today", style = MaterialTheme.typography.bodyMedium, color = muted); Text("${Fmt.count(heart.minBpm)}–${Fmt.count(heart.maxBpm)}", style = MaterialTheme.typography.titleMedium) }
-            }
             PulseCard {
+                CardHeader("Latest", heart.minBpm?.let { "Today ${Fmt.count(it)}–${Fmt.count(heart.maxBpm)} bpm" })
+                BigValue(Fmt.count(heart.latestBpm), "bpm", 40)
                 if (heart.samples.isEmpty()) {
                     Text("No heart-rate data for today yet. It appears after your band syncs.", style = MaterialTheme.typography.bodyMedium, color = muted)
                 } else {
@@ -56,8 +55,8 @@ fun HeartScreen(
                         color = c.heart,
                         description = "Heart rate today, ${Fmt.count(heart.minBpm)} to ${Fmt.count(heart.maxBpm)} bpm",
                         yMin = 40f, yMax = maxOf(160f, (heart.maxBpm ?: 0) + 10f),
-                        referenceY = rest, referenceLabel = rest?.let { "RESTING ${it.toInt()}" },
-                        xLabels = listOf(0f to "0:00", 0.25f to "6:00", 0.5f to "12:00", 0.75f to "18:00"),
+                        referenceY = rest, referenceLabel = rest?.let { "Resting ${it.toInt()}" },
+                        xLabels = listOf(0f to hourLabel(0), 0.25f to hourLabel(6), 0.5f to hourLabel(12), 0.75f to hourLabel(18)),
                         // Zone bands drawn by Pulse from heart rate (Google lists no zone data type for the Fitbit Air).
                         bands = heart.restingHeartRate?.let { zoneBands(it, c.heart) } ?: emptyList(),
                     )
@@ -66,7 +65,7 @@ fun HeartScreen(
         } else {
             val points = heart.restingByDay
             PulseCard {
-                Text("Resting heart rate", style = MaterialTheme.typography.titleMedium)
+                CardHeader("Resting heart rate", headline(heart))
                 LineChart(
                     points = points.mapIndexed { i, (_, v) -> i / (points.size - 1f).coerceAtLeast(1f) to v?.toFloat() },
                     color = c.heart,
@@ -80,16 +79,8 @@ fun HeartScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("Active zone minutes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text("${Fmt.count(heart.zoneMinutes)} of ${heart.zoneMinutesTarget} min", style = MaterialTheme.typography.bodyMedium, color = muted)
-            }
-            ProgressBar((heart.zoneMinutes ?: 0).toFloat() / heart.zoneMinutesTarget.coerceAtLeast(1), c.move, height = 12)
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricTile("Resting", c.heartLabel, Fmt.count(heart.restingHeartRate), "bpm", Modifier.weight(1f)) {
+        TileRow {
+            MetricTile("Resting", c.heartLabel, Fmt.count(heart.restingHeartRate), "bpm", Modifier.weight(1f), { onMetric(MetricKind.RestingHeart) }) {
                 heart.restingDeltaVsNormal?.let { d ->
                     Text(
                         when { d < 0 -> "${-d} below normal"; d > 0 -> "$d above normal"; else -> "Normal for you" },
@@ -98,13 +89,18 @@ fun HeartScreen(
                     )
                 }
             }
-            MetricTile("HRV", c.heartLabel, Fmt.whole(heart.hrvMs), "ms", Modifier.weight(1f)) {
+            MetricTile("Variability", c.heartLabel, Fmt.whole(heart.hrvMs), "ms", Modifier.weight(1f), { onMetric(MetricKind.Hrv) }) {
                 heart.hrvNormalRange?.let {
-                    Text("Your normal: ${it.start.toInt()}–${it.endInclusive.toInt()}", style = MaterialTheme.typography.bodyMedium, color = muted)
+                    Text("Normal ${it.start.toInt()}–${it.endInclusive.toInt()}", style = MaterialTheme.typography.bodyMedium, color = muted)
                 }
             }
         }
-        Box(Modifier)
+        PulseCard(onClick = { onMetric(MetricKind.Zone) }) {
+            CardHeader("Zone minutes today", "${Fmt.count(heart.zoneMinutes)} of ${heart.zoneMinutesTarget}")
+            ProgressBar((heart.zoneMinutes ?: 0).toFloat() / heart.zoneMinutesTarget.coerceAtLeast(1), c.active, height = 10)
+        }
+        if (!isSample) RowGroup(listOf({ ListRow(PulseIcons.Heart, c.heartLabel, "Live heart rate", "Straight from your band", onClick = onOpenLive) }))
+        if (heart.range == Range.Day) Text("Shaded bands are rough effort zones worked out by Pulse, not Google's official ones.", style = MaterialTheme.typography.bodySmall, color = muted)
     }
 }
 

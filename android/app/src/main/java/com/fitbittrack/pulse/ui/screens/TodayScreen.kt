@@ -2,14 +2,18 @@ package com.fitbittrack.pulse.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -17,29 +21,40 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.fitbittrack.pulse.ui.components.CardHeader
 import com.fitbittrack.pulse.ui.components.MetricLabel
 import com.fitbittrack.pulse.ui.components.MetricTile
 import com.fitbittrack.pulse.ui.components.ProgressBar
 import com.fitbittrack.pulse.ui.components.PulseCard
+import com.fitbittrack.pulse.ui.components.PulseIcons
 import com.fitbittrack.pulse.ui.components.PulsePage
 import com.fitbittrack.pulse.ui.components.SampleBanner
 import com.fitbittrack.pulse.ui.components.Sparkline
 import com.fitbittrack.pulse.ui.components.StageBar
 import com.fitbittrack.pulse.ui.components.StatusPill
+import com.fitbittrack.pulse.ui.components.TabHeader
+import com.fitbittrack.pulse.ui.components.TileRow
+import com.fitbittrack.pulse.ui.components.icon
 import com.fitbittrack.pulse.ui.format.Fmt
+import com.fitbittrack.pulse.ui.goals.DayGoals
+import com.fitbittrack.pulse.ui.goals.GoalMetric
+import com.fitbittrack.pulse.ui.model.MetricKind
 import com.fitbittrack.pulse.ui.model.SyncUi
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.TodayUi
 import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.theme.PulseTheme
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.cos
@@ -54,35 +69,34 @@ fun TodayScreen(
     contentPadding: PaddingValues,
     onRefresh: () -> Unit,
     onConnect: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenGoals: () -> Unit,
-    onOpenHeart: () -> Unit,
+    week: List<DayGoals>,
+    onOpenSync: () -> Unit,
+    onCustomize: () -> Unit,
+    onCalendar: () -> Unit,
+    onDay: (LocalDate) -> Unit,
+    onMetric: (MetricKind) -> Unit,
     onOpenSleep: () -> Unit,
-    onOpenActivity: () -> Unit,
 ) {
     val c = PulseTheme.colors
     val shown = prefs.todayCards.filter { it.second }.map { it.first }
     PullToRefreshBox(isRefreshing = sync.running, onRefresh = onRefresh) {
         PulsePage(contentPadding) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    val locale = LocalConfiguration.current.locales[0]
-                    MetricLabel(today.date.format(DateTimeFormatter.ofPattern("EEE · d MMM", locale)), MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Today", style = MaterialTheme.typography.headlineMedium)
-                }
-                SyncChip(sync, onOpenSettings)
+            val locale = LocalConfiguration.current.locales[0]
+            TabHeader("Today", today.date.format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale))) {
+                if (!isSample) SyncChip(sync, onOpenSync)
             }
             if (isSample) SampleBanner(onConnect)
-            if (sync.firstSyncPending) FirstSyncCard(sync)
+            if (sync.firstSyncPending || sync.historyLabel != null) FirstSyncCard(sync)
 
             if (TodayCard.Dial in shown) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(292.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Open steps") { onMetric(MetricKind.Steps) })
                     DayDial(
                         sleepStart = today.sleepStart,
                         sleepEnd = today.sleepEnd,
                         stepsPerHour = today.stepsPerHour,
                         now = today.now,
-                        modifier = Modifier.size(290.dp).semantics {
+                        modifier = Modifier.size(292.dp).semantics {
                             contentDescription = "Day dial. ${Fmt.count(today.steps)} steps. Slept ${Fmt.clock(today.sleepStart)} to ${Fmt.clock(today.sleepEnd)}."
                         },
                     )
@@ -95,17 +109,39 @@ fun TodayScreen(
                 }
             }
 
+            val goalsToday = week.lastOrNull { it.date == today.date }
+            if (goalsToday != null) {
+                PulseCard {
+                    CardHeader("Daily goals", "${goalsToday.coreMet} of ${goalsToday.core.size} reached")
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        goalsToday.core.forEach { g ->
+                            GoalTile(g, g.metric.icon, Modifier.weight(1f)) {
+                                if (g.metric == GoalMetric.Sleep) onOpenSleep() else onMetric(MetricKind.entries.first { it.goal == g.metric })
+                            }
+                        }
+                    }
+                }
+                PulseCard(onClick = onCalendar) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Last 7 days", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text("Calendar", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(PulseIcons.Forward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+                    }
+                    WeekStrip(week, today.date, onDay)
+                }
+            }
+
             today.insight?.let { InsightCard(it.title, it.body, it.positive) }
 
             val tiles = shown.filter { it != TodayCard.Dial }
             tiles.chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    row.forEach { card -> TodayTile(card, today, prefs.units, Modifier.weight(1f), onOpenHeart, onOpenSleep, onOpenActivity) }
+                TileRow {
+                    row.forEach { card -> TodayTile(card, today, prefs.units, Modifier.weight(1f), onMetric, onOpenSleep) }
                     if (row.size == 1) Box(Modifier.weight(1f))
                 }
             }
 
-            TextButton(onClick = onOpenGoals, modifier = Modifier.fillMaxWidth()) { Text("Customize this screen") }
+            TextButton(onClick = onCustomize, modifier = Modifier.fillMaxWidth()) { Text("Customize this screen") }
         }
     }
 }
@@ -113,7 +149,7 @@ fun TodayScreen(
 @Composable
 private fun SyncChip(sync: SyncUi, onClick: () -> Unit) {
     val c = PulseTheme.colors
-    TextButton(onClick = onClick) {
+    Box(Modifier.heightIn(min = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         when {
             sync.needsSignIn || sync.error != null ->
                 StatusPill(if (sync.needsSignIn) "Sign in again" else "Sync problem", MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -126,12 +162,17 @@ private fun SyncChip(sync: SyncUi, onClick: () -> Unit) {
 @Composable
 private fun FirstSyncCard(sync: SyncUi) {
     PulseCard {
-        Text(if (sync.running) "Downloading your history" else "Waiting for the first sync", style = MaterialTheme.typography.titleMedium)
-        if (sync.progress != null) ProgressBar(sync.progress, PulseTheme.colors.body)
+        val title = when {
+            sync.historyLabel != null -> "Downloading your history"
+            sync.running -> "Getting your latest data"
+            else -> "Waiting for the first sync"
+        }
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        (sync.historyProgress ?: sync.progress)?.let { ProgressBar(it, PulseTheme.colors.body) }
         Text(
-            sync.progressLabel ?: sync.error ?: "This starts automatically when your phone is online. It can take a few minutes for a long history.",
+            sync.historyLabel ?: sync.progressLabel ?: sync.error ?: "This starts automatically when your phone is online. It can take a few minutes for a long history.",
             style = MaterialTheme.typography.bodyMedium,
-            color = if (sync.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (sync.error != null && sync.historyLabel == null && sync.progressLabel == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -140,7 +181,7 @@ private fun FirstSyncCard(sync: SyncUi) {
 private fun InsightCard(title: String, body: String, positive: Boolean) {
     PulseCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(10.dp).background(if (positive) PulseTheme.colors.good else PulseTheme.colors.heart, CircleShape).align(Alignment.Top))
+            Box(Modifier.padding(top = 6.dp).size(10.dp).background(if (positive) PulseTheme.colors.good else PulseTheme.colors.heart, CircleShape).align(Alignment.Top))
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -152,28 +193,28 @@ private fun InsightCard(title: String, body: String, positive: Boolean) {
 @Composable
 private fun TodayTile(
     card: TodayCard, t: TodayUi, units: com.fitbittrack.pulse.ui.model.Units, modifier: Modifier,
-    onOpenHeart: () -> Unit, onOpenSleep: () -> Unit, onOpenActivity: () -> Unit,
+    onMetric: (MetricKind) -> Unit, onOpenSleep: () -> Unit,
 ) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     when (card) {
-        TodayCard.RestingHeart -> MetricTile("Resting HR", c.heartLabel, Fmt.count(t.restingHeartRate), "bpm", modifier, onOpenHeart) {
+        TodayCard.RestingHeart -> MetricTile("Resting heart rate", c.heartLabel, Fmt.count(t.restingHeartRate), "bpm", modifier, { onMetric(MetricKind.RestingHeart) }) {
             Sparkline(t.restingHeartRateLast7.map { it?.toFloat() }, c.heart)
         }
         TodayCard.Sleep -> MetricTile("Sleep", c.sleepLabel, Fmt.minutes(t.sleepMinutes), null, modifier, onOpenSleep) {
             t.sleepShares?.let { StageBar(it) }
         }
-        TodayCard.ZoneMinutes -> MetricTile("Zone minutes", c.moveLabel, Fmt.count(t.zoneMinutes), "/ ${t.zoneMinutesDailyTarget} min", modifier, onOpenActivity) {
-            ProgressBar((t.zoneMinutes ?: 0).toFloat() / t.zoneMinutesDailyTarget.coerceAtLeast(1), c.move)
+        TodayCard.ZoneMinutes -> MetricTile("Zone minutes", c.activeLabel, Fmt.count(t.zoneMinutes), "of ${t.zoneMinutesDailyTarget}", modifier, { onMetric(MetricKind.Zone) }) {
+            ProgressBar((t.zoneMinutes ?: 0).toFloat() / t.zoneMinutesDailyTarget.coerceAtLeast(1), c.active)
         }
-        TodayCard.CaloriesDistance -> MetricTile("Calories", c.moveLabel, Fmt.whole(t.caloriesKcal), "kcal", modifier, onOpenActivity) {
+        TodayCard.CaloriesDistance -> MetricTile("Calories", c.energyLabel, Fmt.whole(t.caloriesKcal), "kcal", modifier, { onMetric(MetricKind.Calories) }) {
             val (d, u) = Fmt.distance(t.distanceMeters, units)
             Text("$d $u", style = MaterialTheme.typography.bodyMedium, color = muted)
         }
-        TodayCard.Spo2 -> MetricTile("SpO2 · night", c.bodyLabel, Fmt.whole(t.spo2Percent), "%", modifier, onOpenSleep)
-        TodayCard.Hrv -> MetricTile("HRV · night", c.heartLabel, Fmt.whole(t.hrvMs), "ms", modifier, onOpenHeart)
-        TodayCard.Floors -> MetricTile("Floors", c.moveLabel, Fmt.count(t.floors), "/ ${t.floorsGoal}", modifier, onOpenActivity) {
-            ProgressBar((t.floors ?: 0).toFloat() / t.floorsGoal.coerceAtLeast(1), c.move)
+        TodayCard.Spo2 -> MetricTile("Blood oxygen", c.bodyLabel, Fmt.whole(t.spo2Percent), "%", modifier, { onMetric(MetricKind.Spo2) })
+        TodayCard.Hrv -> MetricTile("Heart variability", c.heartLabel, Fmt.whole(t.hrvMs), "ms", modifier, { onMetric(MetricKind.Hrv) })
+        TodayCard.Floors -> MetricTile("Floors", c.bodyLabel, Fmt.count(t.floors), "of ${t.floorsGoal}", modifier, { onMetric(MetricKind.Floors) }) {
+            ProgressBar((t.floors ?: 0).toFloat() / t.floorsGoal.coerceAtLeast(1), c.body)
         }
         TodayCard.Dial -> Unit
     }

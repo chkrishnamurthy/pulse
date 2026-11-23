@@ -8,7 +8,9 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.Upsert
+import androidx.room.Transaction
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import kotlinx.coroutines.flow.Flow
 
 /*
@@ -61,37 +63,65 @@ data class WorkoutEntity(
 data class FetchedDayEntity(val date: String, val kind: String, val fetchedAtMs: Long)
 
 @Dao
-interface HealthDao {
-    @Upsert suspend fun upsertDaily(rows: List<DailyMetricEntity>)
-    @Upsert suspend fun upsertHeartRate(rows: List<HeartRateEntity>)
-    @Upsert suspend fun upsertHourly(rows: List<HourlyStepsEntity>)
-    @Upsert suspend fun upsertSleep(rows: List<SleepEntity>)
-    @Upsert suspend fun upsertWorkouts(rows: List<WorkoutEntity>)
-    @Upsert suspend fun upsertFetched(row: FetchedDayEntity)
+abstract class HealthDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertDaily(rows: List<DailyMetricEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertHeartRate(rows: List<HeartRateEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertHourly(rows: List<HourlyStepsEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertSleep(rows: List<SleepEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertWorkouts(rows: List<WorkoutEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertFetched(row: FetchedDayEntity)
 
     @Query("SELECT * FROM daily_metric WHERE date >= :from AND date <= :to ORDER BY date")
-    fun daily(from: String, to: String): Flow<List<DailyMetricEntity>>
-
-    @Query("SELECT COUNT(*) FROM daily_metric WHERE metric = :metric AND date >= :from AND date < :toExclusive")
-    suspend fun countDaily(metric: String, from: String, toExclusive: String): Int
+    abstract fun daily(from: String, to: String): Flow<List<DailyMetricEntity>>
 
     @Query("SELECT * FROM heart_rate WHERE date = :date ORDER BY epochSecond")
-    fun heartRate(date: String): Flow<List<HeartRateEntity>>
+    abstract fun heartRate(date: String): Flow<List<HeartRateEntity>>
 
     @Query("DELETE FROM heart_rate WHERE date = :date")
-    suspend fun deleteHeartRate(date: String)
+    abstract suspend fun deleteHeartRate(date: String)
 
     @Query("SELECT * FROM hourly_steps WHERE date = :date ORDER BY hour")
-    fun hourly(date: String): Flow<List<HourlyStepsEntity>>
+    abstract fun hourly(date: String): Flow<List<HourlyStepsEntity>>
+
+    @Query("DELETE FROM hourly_steps WHERE date = :date")
+    abstract suspend fun deleteHourly(date: String)
 
     @Query("SELECT * FROM sleep_session WHERE wakeDate >= :from AND wakeDate <= :to ORDER BY startMs")
-    fun sleep(from: String, to: String): Flow<List<SleepEntity>>
+    abstract fun sleep(from: String, to: String): Flow<List<SleepEntity>>
+
+    @Query("DELETE FROM sleep_session WHERE wakeDate >= :from")
+    abstract suspend fun deleteSleepFrom(from: String)
 
     @Query("SELECT * FROM workout WHERE startDate >= :from AND startDate <= :to ORDER BY startMs DESC")
-    fun workouts(from: String, to: String): Flow<List<WorkoutEntity>>
+    abstract fun workouts(from: String, to: String): Flow<List<WorkoutEntity>>
+
+    @Query("DELETE FROM workout WHERE startDate >= :from")
+    abstract suspend fun deleteWorkoutsFrom(from: String)
 
     @Query("SELECT * FROM fetched_day WHERE date = :date AND kind = :kind")
-    suspend fun fetched(date: String, kind: String): FetchedDayEntity?
+    abstract suspend fun fetched(date: String, kind: String): FetchedDayEntity?
+
+    /** Heart rate for one day, swapped in one step so the graph never flashes empty. */
+    @Transaction
+    open suspend fun replaceHeartRate(date: String, rows: List<HeartRateEntity>) {
+        deleteHeartRate(date); upsertHeartRate(rows)
+    }
+
+    @Transaction
+    open suspend fun replaceHourly(date: String, rows: List<HourlyStepsEntity>) {
+        deleteHourly(date); upsertHourly(rows)
+    }
+
+    /** Makes the local copy match Google for every wake day from [from] on (removes sessions deleted at Google). */
+    @Transaction
+    open suspend fun replaceSleepFrom(from: String, rows: List<SleepEntity>) {
+        deleteSleepFrom(from); upsertSleep(rows)
+    }
+
+    @Transaction
+    open suspend fun replaceWorkoutsFrom(from: String, rows: List<WorkoutEntity>) {
+        deleteWorkoutsFrom(from); upsertWorkouts(rows)
+    }
 }
 
 @Database(

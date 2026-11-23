@@ -152,7 +152,7 @@ object Parsers {
         val minutesAsleep = s.obj("summary")?.num("minutesAsleep")?.toLong()
         val main = s.obj("metadata")?.bool("mainSleep") ?: true
         val wake = interval.localDateOf("endTime", "endUtcOffset", "civilEndTime", zone) ?: return null
-        return ParsedSleep(SleepSession(id, start, end, stages, minutesAsleep, main), wake)
+        return ParsedSleep(SleepSession(id, start, end, stages, minutesAsleep, main, wake), wake)
     }
 
     fun stageType(raw: String?): SleepStageType = when (raw) {

@@ -21,6 +21,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -71,6 +72,9 @@ dependencies {
     // Home-screen widgets (UI session)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+
+    // Health Connect: today's numbers on this phone, without the internet trip
+    implementation(libs.androidx.health.connect)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

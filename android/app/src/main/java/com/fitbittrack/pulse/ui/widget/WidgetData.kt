@@ -38,7 +38,7 @@ data class SmartState(val label: String, val headline: String, val detail: Strin
 object WidgetDataLoader {
 
     suspend fun load(context: Context): WidgetData {
-        val repo = DataLayerBridge.realRepository(context)
+        val repo = DataLayerBridge.savedRepository(context)
         val today = LocalDate.now()
         return withTimeoutOrNull(5_000) {
             // Nothing synced yet means not signed in (or the first download hasn't finished).

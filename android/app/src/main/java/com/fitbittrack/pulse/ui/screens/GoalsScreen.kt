@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -21,112 +19,102 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.fitbittrack.pulse.ui.components.MetricLabel
-import com.fitbittrack.pulse.ui.components.PulseCard
+import com.fitbittrack.pulse.ui.components.DetailPage
+import com.fitbittrack.pulse.ui.components.IconBadge
 import com.fitbittrack.pulse.ui.components.PulseIcons
-import com.fitbittrack.pulse.ui.components.PulsePage
-import com.fitbittrack.pulse.ui.components.Segmented
+import com.fitbittrack.pulse.ui.components.RowGroup
+import com.fitbittrack.pulse.ui.components.icon
+import com.fitbittrack.pulse.ui.components.label
+import com.fitbittrack.pulse.ui.components.tone
 import com.fitbittrack.pulse.ui.format.Fmt
+import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.UiPrefs
-import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 
 /** The goals the data layer stores (mirrors domain.Goals, kept UI-side so screens don't depend on it). */
-data class GoalsUi(val dailySteps: Int, val sleepMinutes: Int, val weeklyZoneMinutes: Int, val dailyFloors: Int)
+data class GoalsUi(val dailySteps: Int, val sleepMinutes: Int, val weeklyZoneMinutes: Int, val dailyFloors: Int, val dailyCalories: Int)
 
 @Composable
-fun GoalsScreen(
-    goals: GoalsUi,
-    prefs: UiPrefs,
-    contentPadding: PaddingValues,
-    onBack: () -> Unit,
-    onGoalsChange: (GoalsUi) -> Unit,
-    onPrefsChange: (UiPrefs) -> Unit,
-) {
-    val c = PulseTheme.colors
-    PulsePage(contentPadding) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = onBack) { Icon(PulseIcons.Back, contentDescription = "Back") }
-            Text("Goals and layout", style = MaterialTheme.typography.headlineMedium)
+fun GoalsScreen(goals: GoalsUi, contentPadding: PaddingValues, onBack: () -> Unit, onGoalsChange: (GoalsUi) -> Unit) {
+    DetailPage("Goals", contentPadding, onBack) {
+        RowGroup(listOf(
+            { GoalStepper(GoalMetric.Steps, "Steps a day", Fmt.count(goals.dailySteps), goals.dailySteps, 500, 1_000..50_000) { onGoalsChange(goals.copy(dailySteps = it)) } },
+            { GoalStepper(GoalMetric.Calories, "Calories a day", "${Fmt.count(goals.dailyCalories)} kcal", goals.dailyCalories, 50, 1_000..6_000) { onGoalsChange(goals.copy(dailyCalories = it)) } },
+            { GoalStepper(GoalMetric.Sleep, "Sleep a night", Fmt.minutes(goals.sleepMinutes), goals.sleepMinutes, 15, 240..720) { onGoalsChange(goals.copy(sleepMinutes = it)) } },
+            { GoalStepper(GoalMetric.Zone, "Zone minutes a week", "${goals.weeklyZoneMinutes} min", goals.weeklyZoneMinutes, 10, 10..1_000) { onGoalsChange(goals.copy(weeklyZoneMinutes = it)) } },
+            { GoalStepper(GoalMetric.Floors, "Floors a day", "${goals.dailyFloors}", goals.dailyFloors, 1, 1..100) { onGoalsChange(goals.copy(dailyFloors = it)) } },
+        ))
+        Text(
+            "A new goal counts from today. Earlier days in the calendar keep the goal they had. Calories means all energy used in a day, resting included. The weekly zone goal is split over seven days.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun GoalStepper(metric: GoalMetric, label: String, value: String, now: Int, step: Int, range: IntRange, onChange: (Int) -> Unit) {
+    val tint = PulseTheme.colors.label(metric.tone)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 76.dp).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        IconBadge(metric.icon, tint)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
         }
+        Row(Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+            IconButton(onClick = { onChange((now - step).coerceIn(range)) }, enabled = now > range.first) { Icon(PulseIcons.Minus, contentDescription = "Less: $label", modifier = Modifier.size(20.dp)) }
+            IconButton(onClick = { onChange((now + step).coerceIn(range)) }, enabled = now < range.last) { Icon(PulseIcons.Plus, contentDescription = "More: $label", modifier = Modifier.size(20.dp)) }
+        }
+    }
+}
 
-        MetricLabel("Goals", MaterialTheme.colorScheme.onSurfaceVariant)
-        GoalRow("Daily steps", Fmt.count(goals.dailySteps), c.move,
-            dec = { onGoalsChange(goals.copy(dailySteps = (goals.dailySteps - 500).coerceAtLeast(1000))) },
-            inc = { onGoalsChange(goals.copy(dailySteps = (goals.dailySteps + 500).coerceAtMost(50_000))) })
-        GoalRow("Weekly zone minutes", "${goals.weeklyZoneMinutes} min", c.move,
-            dec = { onGoalsChange(goals.copy(weeklyZoneMinutes = (goals.weeklyZoneMinutes - 10).coerceAtLeast(10))) },
-            inc = { onGoalsChange(goals.copy(weeklyZoneMinutes = (goals.weeklyZoneMinutes + 10).coerceAtMost(1000))) })
-        GoalRow("Sleep", Fmt.minutes(goals.sleepMinutes), c.sleep,
-            dec = { onGoalsChange(goals.copy(sleepMinutes = (goals.sleepMinutes - 15).coerceAtLeast(240))) },
-            inc = { onGoalsChange(goals.copy(sleepMinutes = (goals.sleepMinutes + 15).coerceAtMost(720))) })
-        GoalRow("Daily floors", "${goals.dailyFloors}", c.move,
-            dec = { onGoalsChange(goals.copy(dailyFloors = (goals.dailyFloors - 1).coerceAtLeast(1))) },
-            inc = { onGoalsChange(goals.copy(dailyFloors = (goals.dailyFloors + 1).coerceAtMost(100))) })
-
-        MetricLabel("Cards on Today", MaterialTheme.colorScheme.onSurfaceVariant)
-        PulseCard {
-            prefs.todayCards.forEachIndexed { i, (card, on) ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(8.dp).background(cardColor(card), CircleShape))
-                    Text(card.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding8())
-                    IconButton(
-                        onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i - 1))) },
-                        enabled = i > 0,
-                        modifier = Modifier.semantics { contentDescription = "Move ${card.label} up" },
-                    ) { Text("↑") }
-                    IconButton(
-                        onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i + 1))) },
-                        enabled = i < prefs.todayCards.lastIndex,
-                        modifier = Modifier.semantics { contentDescription = "Move ${card.label} down" },
-                    ) { Text("↓") }
+/** Which cards Today shows, and in which order. */
+@Composable
+fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () -> Unit, onPrefsChange: (UiPrefs) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    DetailPage("Today screen", contentPadding, onBack) {
+        Text("Your goals and the week are always shown. Choose the rest here.", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+        RowGroup(prefs.todayCards.mapIndexed { i, (card, on) ->
+            {
+                Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(cardColor(card), CircleShape))
+                    Text(card.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    IconButton(onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i - 1))) }, enabled = i > 0) {
+                        Icon(PulseIcons.Up, contentDescription = "Move ${card.label} up", modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i + 1))) }, enabled = i < prefs.todayCards.lastIndex) {
+                        Icon(PulseIcons.Down, contentDescription = "Move ${card.label} down", modifier = Modifier.size(20.dp))
+                    }
                     Switch(
                         checked = on,
                         onCheckedChange = { v -> onPrefsChange(prefs.copy(todayCards = prefs.todayCards.mapIndexed { j, p -> if (j == i) p.first to v else p })) },
-                        modifier = Modifier.semantics { contentDescription = "Show ${card.label}" },
+                        modifier = Modifier.padding(start = 4.dp).semantics { contentDescription = "Show ${card.label}" },
                     )
                 }
             }
-        }
-
-        MetricLabel("Units", MaterialTheme.colorScheme.onSurfaceVariant)
-        Segmented(Units.entries, prefs.units, { if (it == Units.Metric) "km · kg" else "mi · lb" }) { onPrefsChange(prefs.copy(units = it)) }
+        }, dividerInset = 38)
     }
 }
 
 @Composable
-private fun GoalRow(label: String, value: String, color: Color, dec: () -> Unit, inc: () -> Unit) {
-    PulseCard {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.width(8.dp).height(36.dp).background(color, RoundedCornerShape(4.dp)))
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.titleMedium)
-            }
-            FilledTonalIconButton(onClick = dec, modifier = Modifier.semantics { contentDescription = "Decrease $label" }) { Text("−") }
-            FilledTonalIconButton(onClick = inc, modifier = Modifier.semantics { contentDescription = "Increase $label" }) { Text("+") }
-        }
-    }
-}
-
-@Composable
-private fun cardColor(card: TodayCard): Color {
+private fun cardColor(card: TodayCard): androidx.compose.ui.graphics.Color {
     val c = PulseTheme.colors
     return when (card) {
-        TodayCard.Dial -> MaterialTheme.colorScheme.onSurface
+        TodayCard.Dial -> c.move
         TodayCard.RestingHeart, TodayCard.Hrv -> c.heart
         TodayCard.Sleep -> c.sleep
-        TodayCard.Spo2 -> c.body
-        else -> c.move
+        TodayCard.Spo2, TodayCard.Floors -> c.body
+        TodayCard.ZoneMinutes -> c.active
+        TodayCard.CaloriesDistance -> c.energy
     }
 }
-
-private fun Modifier.padding8() = this.padding(start = 10.dp)
 
 private fun <T> List<T>.move(from: Int, to: Int): List<T> {
     if (to !in indices) return this

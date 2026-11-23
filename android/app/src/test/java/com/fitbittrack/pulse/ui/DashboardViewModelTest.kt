@@ -42,6 +42,44 @@ class DashboardViewModelTest {
         job.cancel()
     }
 
+    /** Counts refresh calls; everything else comes from the sample. */
+    private class CountingRepo(
+        private val base: com.fitbittrack.pulse.domain.HealthRepository = com.fitbittrack.pulse.ui.sample.SampleHealthRepository(),
+    ) : com.fitbittrack.pulse.domain.HealthRepository by base {
+        var onOpen = 0
+        var live = 0
+        override suspend fun refreshIfStale(maxAge: java.time.Duration) { onOpen++ }
+        override suspend fun refreshToday() { live++; if (live == 1) error("offline") }
+    }
+
+    @Test fun `refreshes on open, then regularly, and stops off screen`() = runTest(dispatcher) {
+        val vm = DashboardViewModel()
+        val repo = CountingRepo()
+        vm.startLiveRefresh()
+        runCurrent()
+        assertEquals(0, repo.onOpen) // sample data: nothing to refresh
+        vm.useRepository(repo)
+        runCurrent()
+        assertEquals(1, repo.onOpen)
+        assertEquals(0, repo.live)
+
+        advanceTimeBy(DashboardViewModel.LIVE_INTERVAL_MS * 3 + 1)
+        runCurrent()
+        assertEquals(3, repo.live) // one failure doesn't end the loop
+        assertEquals(1, repo.onOpen)
+
+        vm.stopLiveRefresh()
+        advanceTimeBy(DashboardViewModel.LIVE_INTERVAL_MS * 3)
+        runCurrent()
+        assertEquals(3, repo.live)
+
+        vm.startLiveRefresh()
+        vm.startLiveRefresh() // calling twice starts one loop
+        runCurrent()
+        assertEquals(2, repo.onOpen)
+        vm.stopLiveRefresh()
+    }
+
     @Test fun `starts on sample data and switches to a real repository`() = runTest(dispatcher) {
         val vm = DashboardViewModel()
         val job = launch { vm.isSample.collect { } }

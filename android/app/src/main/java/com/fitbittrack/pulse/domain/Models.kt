@@ -41,6 +41,8 @@ data class SleepSession(
     /** Google's own "minutes asleep" when it sends one; otherwise worked out from the stages. */
     private val reportedMinutesAsleep: Long? = null,
     val isMainSleep: Boolean = true,
+    /** The local day you woke up, from Google's civil end time (correct even after travel). */
+    val wakeDate: LocalDate? = null,
 ) {
     val minutesAsleep: Long
         get() = reportedMinutesAsleep
@@ -69,7 +71,20 @@ data class Goals(
     val sleepMinutes: Int = 480,
     val weeklyActiveZoneMinutes: Int = 150,
     val dailyFloors: Int = 10,
+    /** All energy used in a day, resting included (Google's total calories). */
+    val dailyCalories: Int = 2800,
 )
+
+/** Goals that apply from [from] on, until the next entry. The calendar judges each day by its own goals. */
+data class DatedGoals(val from: LocalDate, val goals: Goals) {
+    companion object {
+        /** History after changing goals on [today]. The first entry keeps the old goals for all earlier days. */
+        fun record(history: List<DatedGoals>, before: Goals, after: Goals, today: LocalDate): List<DatedGoals> {
+            val base = history.ifEmpty { listOf(DatedGoals(LocalDate.ofEpochDay(0), before)) }
+            return (base.filter { it.from != today } + DatedGoals(today, after)).sortedBy { it.from }
+        }
+    }
+}
 
 sealed interface SyncState {
     data object Idle : SyncState
@@ -84,4 +99,6 @@ data class SyncStatus(
     val lastSuccess: Instant? = null,
     /** When the Fitbit Air last synced to the Google Health app (from paired devices). */
     val lastTrackerSync: Instant? = null,
+    /** Set while older history is downloading. Separate from [state], so it never blocks a refresh. */
+    val history: SyncState.Running? = null,
 )

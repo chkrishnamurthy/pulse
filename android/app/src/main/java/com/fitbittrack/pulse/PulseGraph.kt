@@ -13,13 +13,14 @@ import com.fitbittrack.pulse.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Hand-made wiring for the data layer (one instance of each piece for the whole app).
  *
  * Screens use:
  *  - [repository] to read data,
- *  - [onSignedIn] right after Google sign-in succeeds (starts history download + 4-hourly sync),
+ *  - [onSignedIn] right after Google sign-in succeeds (starts history download + regular sync),
  *  - [onSignedOut] when the user signs out (stops background sync; local data stays until deleted).
  */
 object PulseGraph {
@@ -30,10 +31,16 @@ object PulseGraph {
         val store = SettingsStore(context)
         val tokens = GisTokenProvider(context)
         val client = HealthClient(HealthApi(), tokens)
-        val engine = SyncEngine(client, db.dao(), store, onSuccess = {
+        private val notifyListeners: suspend () -> Unit = {
             syncListeners.forEach { listener -> runCatching { listener(context) } }
-        })
-        val repository: HealthRepository = HealthRepositoryImpl(db, store, engine, appScope)
+        }
+        val engine = SyncEngine(client, db.dao(), store, onSuccess = notifyListeners)
+        val repository: HealthRepository = HealthRepositoryImpl(db, store, engine, appScope, onLocalDataChanged = notifyListeners)
+
+        init {
+            // A "running" state saved by a process that was killed mid-sync. No sync can run yet in this process.
+            appScope.launch { store.clearStaleRunning() }
+        }
     }
 
     @Volatile private var graph: Graph? = null
@@ -61,6 +68,12 @@ object PulseGraph {
         accessToken?.let(g.tokens::seed)
         SyncScheduler.start(context.applicationContext)
     }
+
+    /** Call on app start when an account is connected: keeps the regular background sync scheduled. */
+    fun ensureBackgroundSync(context: Context) = SyncScheduler.ensurePeriodic(context.applicationContext)
+
+    /** One background sync soon (widget refresh button). */
+    fun syncNow(context: Context) = SyncScheduler.syncNow(context.applicationContext)
 
     fun onSignedOut(context: Context) {
         graph(context).tokens.invalidate()

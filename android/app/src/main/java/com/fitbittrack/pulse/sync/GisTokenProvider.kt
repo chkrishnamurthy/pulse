@@ -36,9 +36,9 @@ class GisTokenProvider(context: Context) : TokenProvider {
                 outcome.accessToken
             }
             is GoogleHealthAuth.Outcome.NeedsConsent ->
-                throw NeedsSignInException("Google needs you to sign in again. Open Pulse and tap Connect.")
+                throw NeedsSignInException("Google needs you to sign in again. In Pulse, open You, then Sync and data.")
             is GoogleHealthAuth.Outcome.Failed ->
-                if ("internet" in outcome.message.lowercase()) throw HealthApiException(null, "", outcome.message)
+                if (outcome.retryable) throw HealthApiException(null, "", outcome.message)
                 else throw NeedsSignInException(outcome.message)
         }
     }

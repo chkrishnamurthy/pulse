@@ -9,12 +9,15 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
@@ -29,11 +32,15 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.semantics.contentDescription
+import androidx.glance.semantics.semantics
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.fitbittrack.pulse.MainActivity
+import com.fitbittrack.pulse.ui.DataLayerBridge
 import com.fitbittrack.pulse.ui.format.Fmt
 
 /*
@@ -72,13 +79,32 @@ private fun label(color: androidx.glance.unit.ColorProvider) = TextStyle(color =
 private fun big(size: Int = 28) = TextStyle(color = W.text, fontSize = size.sp, fontWeight = FontWeight.Bold)
 private val small = TextStyle(color = W.muted, fontSize = 12.sp)
 
-/** Rounded card that opens the app when tapped. */
+/** Refresh button: asks for one background sync. The widgets redraw by themselves when it finishes. */
+class SyncNowAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        DataLayerBridge.syncNow(context)
+    }
+}
+
+/** Rounded card that opens the app when tapped. [refresh] adds a refresh button in the corner. */
 @Composable
-private fun Card(content: @Composable () -> Unit) {
+private fun Card(refresh: Boolean = false, content: @Composable () -> Unit) {
     Box(
         GlanceModifier.fillMaxSize().background(W.bg).cornerRadius(24.dp).padding(14.dp)
             .clickable(actionStartActivity<MainActivity>()),
-    ) { content() }
+    ) {
+        content()
+        // Very small widgets have no room for a button you could hit.
+        if (refresh && LocalSize.current.width >= 110.dp) {
+            Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+                Box(
+                    GlanceModifier.size(40.dp).clickable(actionRunCallback<SyncNowAction>())
+                        .semantics { contentDescription = "Refresh" },
+                    contentAlignment = Alignment.TopEnd,
+                ) { Text("↻", style = TextStyle(color = W.muted, fontSize = 16.sp)) }
+            }
+        }
+    }
 }
 
 @Composable
@@ -101,7 +127,7 @@ class SmartWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SQUARE, LARGE))
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val d = WidgetDataLoader.load(context)
-        provideContent { Card { SmartContent(d) } }
+        provideContent { Card(refresh = d.signedIn) { SmartContent(d) } }
     }
 }
 
@@ -133,7 +159,7 @@ class StepsWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, SQUARE, WIDE))
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val d = WidgetDataLoader.load(context)
-        provideContent { Card { StepsContent(d) } }
+        provideContent { Card(refresh = d.signedIn) { StepsContent(d) } }
     }
 }
 
@@ -181,7 +207,7 @@ class HeartWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(DpSize(60.dp, 60.dp), SQUARE))
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val d = WidgetDataLoader.load(context)
-        provideContent { Card { HeartContent(d) } }
+        provideContent { Card(refresh = d.signedIn) { HeartContent(d) } }
     }
 }
 
@@ -222,7 +248,7 @@ class SleepWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(WIDE, SQUARE))
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val d = WidgetDataLoader.load(context)
-        provideContent { Card { SleepContent(d) } }
+        provideContent { Card(refresh = d.signedIn) { SleepContent(d) } }
     }
 }
 

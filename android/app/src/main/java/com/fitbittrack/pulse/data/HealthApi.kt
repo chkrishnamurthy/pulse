@@ -90,7 +90,7 @@ class HealthApi(
                 }
                 val e = HealthApiException(code, body, explain(code, body))
                 if (!e.isTransient || attempt >= maxAttempts) throw e
-                sleeper(retryAfter?.times(1000) ?: backoffMillis(attempt))
+                sleeper(retryAfter?.coerceIn(1, 60)?.times(1000) ?: backoffMillis(attempt))
                 continue
             } catch (e: HealthApiException) {
                 throw e

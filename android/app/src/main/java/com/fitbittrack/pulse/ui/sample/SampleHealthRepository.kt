@@ -1,5 +1,6 @@
 package com.fitbittrack.pulse.ui.sample
 
+import com.fitbittrack.pulse.domain.DatedGoals
 import com.fitbittrack.pulse.domain.DaySummary
 import com.fitbittrack.pulse.domain.Goals
 import com.fitbittrack.pulse.domain.HealthRepository
@@ -42,7 +43,7 @@ class SampleHealthRepository : HealthRepository {
             steps = if (isToday) 8_420 else (9_300 + 2_600 * wave + (i * 37 % 900)).toLong(),
             distanceMeters = if (isToday) 6_100.0 else 6_500 + 1_800 * wave,
             floors = (8 + 4 * wave).toLong().coerceAtLeast(0),
-            caloriesKcal = if (isToday) 2_184.0 else 2_300 + 250 * wave,
+            caloriesKcal = if (isToday) 2_184.0 else 2_760 + 330 * sin(i / 2.0) + (i * 53 % 120),
             activeZoneMinutes = if (isToday) 34 else (24 + 14 * wave).toLong().coerceAtLeast(0),
             activeMinutes = (35 + 15 * wave).toLong(),
             restingHeartRate = if (isToday) 58 else 60 + (sin(i / 5.0) * 1.5).toInt(),
@@ -86,8 +87,10 @@ class SampleHealthRepository : HealthRepository {
             SleepStageType.LIGHT to 30, SleepStageType.REM to 30, SleepStageType.LIGHT to 34, SleepStageType.AWAKE to 6,
             SleepStageType.LIGHT to 26, SleepStageType.REM to 39, SleepStageType.AWAKE to 23, SleepStageType.LIGHT to 22,
         )
+        // Nights differ, so the calendar has something to show.
+        val longer = (wakeDay.toEpochDay() * 37 % 7).toInt() * 16
         var t = start
-        val stages = plan.map { (type, m) -> SleepStage(type, t, t.plusSeconds(m * 60L)).also { t = it.end } }
+        val stages = (plan + (SleepStageType.LIGHT to 1 + longer)).map { (type, m) -> SleepStage(type, t, t.plusSeconds(m * 60L)).also { t = it.end } }
         return SleepSession("sample-$wakeDay", start, t, stages)
     }
 
@@ -105,8 +108,13 @@ class SampleHealthRepository : HealthRepository {
 
     override val syncStatus: Flow<SyncStatus> = status
     override val goals: Flow<Goals> = goalsState.map { it }
+    private val historyState = MutableStateFlow(listOf(DatedGoals(LocalDate.ofEpochDay(0), Goals())))
+    override val goalHistory: Flow<List<DatedGoals>> = historyState
 
-    override suspend fun setGoals(goals: Goals) { goalsState.value = goals }
+    override suspend fun setGoals(goals: Goals) {
+        historyState.value = DatedGoals.record(historyState.value, goalsState.value, goals, LocalDate.now())
+        goalsState.value = goals
+    }
 
     override suspend fun refreshNow() {
         status.value = status.value.copy(state = SyncState.Running(null, "Sample refresh"))

@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitbittrack.pulse.auth.GoogleHealthAuth
 import com.fitbittrack.pulse.data.HealthApi
+import com.fitbittrack.pulse.direct.LocalLane
 import com.fitbittrack.pulse.ui.DataLayerBridge
 import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.prefs.UiPrefsStore
@@ -78,6 +79,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
             return
         }
         _state.update { it.copy(auth = AuthState.SignedIn(null), accountName = session.accountName) }
+        DataLayerBridge.ensureBackgroundSync(app)
         val outcome = auth.authorize() // silent when already granted; never shows UI here
         if (outcome is GoogleHealthAuth.Outcome.Granted) {
             accessToken = outcome.accessToken
@@ -135,6 +137,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(signingOut = true) }
         val accountName = _state.value.accountName ?: prefsStore.session.first().accountName
         DataLayerBridge.onSignedOut(app)
+        LocalLane.get(app).turnOff()
         try {
             DataLayerBridge.realRepository(app).deleteAllLocalData()
         } catch (e: CancellationException) {

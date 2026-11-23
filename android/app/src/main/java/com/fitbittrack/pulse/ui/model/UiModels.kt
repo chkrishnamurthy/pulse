@@ -94,6 +94,7 @@ data class SleepUi(
     val spo2Percent: Double?,
     val respiratoryRate: Double?,
     val skinTempDeltaC: Double?,
+    val hrvMs: Double?,
     /** Last 7 nights, oldest first: bedtime and wake time as minutes after 18:00 (so the night is continuous). */
     val week: List<NightBar>,
     val sleepGoalMinutes: Int,
@@ -120,6 +121,15 @@ data class ActivityUi(
     val workouts: List<WorkoutUi>,
 )
 
+/** The Health tab: the newest value of everything. */
+data class HubUi(
+    val today: LocalDate,
+    val latest: Map<MetricKind, Pair<LocalDate, Double>>,
+    val latestBpm: Int?,
+    val sleepMinutes: Int?,
+    val workouts7: Int,
+)
+
 enum class ReportRange(val label: String, val days: Int) { Week("Week", 7), Month("Month", 30), Year("Year", 365) }
 
 /** One day as the reports need it. */
@@ -141,6 +151,9 @@ data class SyncUi(
     val lastTrackerLabel: String,
     /** Real account connected but nothing downloaded yet: show the first-sync card. */
     val firstSyncPending: Boolean,
+    /** Set while older history downloads in the background. Doesn't block refreshing. */
+    val historyLabel: String? = null,
+    val historyProgress: Float? = null,
     /** 0..1 during the history download, null when unknown. */
     val progress: Float? = null,
 )

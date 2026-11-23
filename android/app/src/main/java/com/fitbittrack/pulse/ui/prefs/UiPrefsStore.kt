@@ -22,6 +22,7 @@ class UiPrefsStore(private val context: Context) {
     private val cardsKey = stringPreferencesKey("today_cards") // "Dial:1,Sleep:0,…"
     private val connectedKey = booleanPreferencesKey("connected")
     private val accountKey = stringPreferencesKey("account_name")
+    private val healthConnectKey = booleanPreferencesKey("health_connect")
 
     /** Whether the user connected a Google account and has not signed out. No tokens are stored. */
     data class Session(val connected: Boolean, val accountName: String?)
@@ -38,6 +39,11 @@ class UiPrefsStore(private val context: Context) {
     suspend fun clearSession() = context.uiPrefsStore.edit {
         it.remove(connectedKey); it.remove(accountKey)
     }
+
+    /** Whether the user switched on reading today's numbers from Health Connect. Off by default. */
+    val healthConnect: Flow<Boolean> = context.uiPrefsStore.data.map { it[healthConnectKey] ?: false }
+
+    suspend fun setHealthConnect(on: Boolean) = context.uiPrefsStore.edit { it[healthConnectKey] = on }
 
     val theme: Flow<ThemeMode> = context.uiPrefsStore.data.map { p ->
         p[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System

@@ -2,14 +2,19 @@ package com.fitbittrack.pulse.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,14 +47,18 @@ fun ConnectScreen(
     LaunchedEffect(auth) { if (auth is AuthState.SignedIn) onContinue() }
 
     val c = PulseTheme.colors
+    // Fills the screen when there is room, scrolls when there isn't (large text, landscape).
+    BoxWithConstraints(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.TopCenter) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            .verticalScroll(rememberScrollState())
+            .widthIn(max = 480.dp)
+            .heightIn(min = maxHeight)
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Spacer(Modifier.height(24.dp))
         Canvas(Modifier.size(200.dp)) {
             val stroke = 16.dp.toPx()
@@ -74,7 +83,8 @@ fun ConnectScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.weight(1f))
+        }
+        Column(Modifier.padding(top = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (auth is AuthState.Error) {
             Text(auth.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
@@ -97,5 +107,7 @@ fun ConnectScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        }
+    }
     }
 }

@@ -168,31 +168,36 @@ object Mappers {
             spo2Percent = body?.spo2Percent,
             respiratoryRate = body?.respiratoryRate,
             skinTempDeltaC = body?.skinTempDeltaC,
+            hrvMs = body?.hrvMs,
             week = week,
             sleepGoalMinutes = goals.sleepMinutes,
         )
     }
 
     fun activity(workouts: List<Workout>, week: List<DaySummary>, goals: Goals): ActivityUi {
-        val whenFmt = DateTimeFormatter.ofPattern("EEE HH:mm", Locale.getDefault())
         return ActivityUi(
             weekZoneMinutes = week.mapNotNull { it.activeZoneMinutes }.takeIf { it.isNotEmpty() }?.sum(),
             weekZoneTarget = goals.weeklyActiveZoneMinutes,
             weekDistanceMeters = week.mapNotNull { it.distanceMeters }.takeIf { it.isNotEmpty() }?.sum(),
             weekActiveMinutes = week.mapNotNull { it.activeMinutes }.takeIf { it.isNotEmpty() }?.sum(),
-            workouts = workouts.map { w ->
-                WorkoutUi(
-                    id = w.id,
-                    tag = tagFor(w.type),
-                    name = w.name.ifBlank { w.type.lowercase().replaceFirstChar { it.uppercase() } },
-                    whenLabel = w.start.atZone(zone).format(whenFmt),
-                    durationMinutes = (w.activeSeconds ?: Duration.between(w.start, w.end).seconds) / 60,
-                    distanceMeters = w.distanceMeters,
-                    avgHeartRate = w.avgHeartRate,
-                    caloriesKcal = w.caloriesKcal,
-                )
-            },
+            workouts = workouts(workouts),
         )
+    }
+
+    fun workouts(list: List<Workout>): List<WorkoutUi> {
+        val whenFmt = DateTimeFormatter.ofPattern("EEE HH:mm", Locale.getDefault())
+        return list.map { w ->
+            WorkoutUi(
+                id = w.id,
+                tag = tagFor(w.type),
+                name = w.name.ifBlank { w.type.lowercase().replaceFirstChar { it.uppercase() } },
+                whenLabel = w.start.atZone(zone).format(whenFmt),
+                durationMinutes = (w.activeSeconds ?: Duration.between(w.start, w.end).seconds) / 60,
+                distanceMeters = w.distanceMeters,
+                avgHeartRate = w.avgHeartRate,
+                caloriesKcal = w.caloriesKcal,
+            )
+        }
     }
 
     private fun tagFor(type: String): String {
@@ -228,5 +233,7 @@ object Mappers {
         lastTrackerLabel = if (s.lastTrackerSync == null) "unknown" else Fmt.ago(s.lastTrackerSync, now),
         firstSyncPending = !isSample && s.lastSuccess == null,
         progress = (s.state as? SyncState.Running)?.progress,
+        historyLabel = s.history?.let { r -> r.progress?.let { "${r.label} · ${(it * 100).roundToInt()}%" } ?: r.label },
+        historyProgress = s.history?.progress,
     )
 }

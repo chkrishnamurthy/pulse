@@ -1,6 +1,8 @@
 package com.fitbittrack.pulse.domain
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.Duration
 import java.time.LocalDate
 
 /**
@@ -27,10 +29,19 @@ interface HealthRepository {
     val syncStatus: Flow<SyncStatus>
 
     val goals: Flow<Goals>
+
+    /** Every change of goals with its date, oldest first. Never empty. */
+    val goalHistory: Flow<List<DatedGoals>> get() = goals.map { listOf(DatedGoals(LocalDate.ofEpochDay(0), it)) }
     suspend fun setGoals(goals: Goals)
 
     /** Runs a sync right now (pull-to-refresh). Returns when it has finished. */
     suspend fun refreshNow()
+
+    /** [refreshNow], but only if the last full sync is older than [maxAge] (used when the app opens). */
+    suspend fun refreshIfStale(maxAge: Duration) {}
+
+    /** Quick, silent update of today's numbers (used while the app stays open). */
+    suspend fun refreshToday() {}
 
     /** Deletes the local copy only. Your data at Google is not touched. */
     suspend fun deleteAllLocalData()

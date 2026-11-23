@@ -41,6 +41,7 @@ fun SleepEntity.toDomain() = SleepSession(
     },
     reportedMinutesAsleep = minutesAsleep,
     isMainSleep = mainSleep,
+    wakeDate = runCatching { LocalDate.parse(wakeDate) }.getOrNull(),
 )
 
 fun Workout.toEntity(startDate: LocalDate) = WorkoutEntity(

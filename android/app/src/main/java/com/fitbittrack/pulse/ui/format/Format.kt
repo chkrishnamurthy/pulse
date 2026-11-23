@@ -33,7 +33,7 @@ object Fmt {
     }
 
     fun oneDecimal(v: Double?): String = v?.let { "%.1f".format(it) } ?: NONE
-    fun whole(v: Double?): String = v?.roundToInt()?.toString() ?: NONE
+    fun whole(v: Double?): String = v?.let { count(it.roundToInt()) } ?: NONE
 
     fun signedTemp(deltaC: Double?): String =
         deltaC?.let { (if (it >= 0) "+" else "−") + "%.1f°".format(kotlin.math.abs(it)) } ?: NONE
