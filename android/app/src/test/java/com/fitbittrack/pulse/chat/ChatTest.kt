@@ -181,6 +181,28 @@ class AnswerBuilderTest {
         assertTrue(ask("Compare my steps with last week", data(days = listOf(DaySummary(today, steps = 5)))).direct.contains("not enough data"))
     }
 
+    @Test fun `a comparison shows the same number in the heading, the bars and the sentence`() {
+        // An odd average, and an unfinished today that must not change it.
+        val steps = listOf(400L, 11_201, 11_950, 11_802, 10_907, 11_333, 11_700, 10_720, 8_100, 8_250, 8_301, 8_180, 8_333, 8_299, 8_270)
+        val a = ask("Compare my steps with last week", data(days = steps.mapIndexed { i, n -> DaySummary(today.minusDays(i.toLong()), steps = n) }))
+        assertEquals("You averaged 11,373 steps a day in the last seven days, and 8,248 steps in the seven before. That is 3,125 steps more.", a.direct)
+        assertEquals("11,373", a.big)
+        assertEquals("Steps, last 7 full days", a.title)
+        assertEquals(10_720.0, a.bars.first().value!!, 0.0)
+        assertEquals(11_201.0, a.bars.last().value!!, 0.0)
+        assertEquals("11,373", ask("compare my steps today with last week", data(days = steps.mapIndexed { i, n -> DaySummary(today.minusDays(i.toLong()), steps = n) })).big)
+    }
+
+    @Test fun `the idea fits the result`() {
+        val month = (1L..30L).map { DaySummary(today.minusDays(it), restingHeartRate = 60, steps = 12_000) }
+        fun rhr(v: Int) = ask("Is my resting heart rate normal?", data(month + DaySummary(today, restingHeartRate = v))).ideas
+        assertEquals(Ideas.keep(Topic.RestingHeart), rhr(58))
+        assertEquals(Ideas.forTopic(Topic.RestingHeart), rhr(66))
+        assertEquals(Ideas.keep(Topic.Steps), ask("average steps this week", data(month)).ideas)
+        assertEquals(Ideas.forTopic(Topic.Steps), ask("average steps this week", data((0L..6L).map { DaySummary(today.minusDays(it), steps = 4_000) })).ideas)
+        assertEquals(Ideas.forTopic(Topic.Sleep), ask("How did I sleep this week?", data(nights = week)).ideas)
+    }
+
     @Test fun `no data is said plainly and never guessed`() {
         val a = ask("How did I sleep on 2 January?", data(nights = week))
         assertFalse(a.hasData)

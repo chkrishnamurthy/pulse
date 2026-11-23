@@ -288,8 +288,10 @@ private fun Bars(a: Answer) {
     val values = a.bars.mapNotNull { it.value }
     val max = values.maxOrNull() ?: 1.0
     val min = values.minOrNull() ?: 0.0
-    // Amounts start at zero. Measurements (58, 60, 61 bpm) would all look the same, so they start near the lowest.
-    fun part(v: Double): Double = if (a.fromZero) (if (max > 0) v / max else 0.0) else if (max > min) 0.3 + 0.7 * (v - min) / (max - min) else 0.65
+    // Amounts start at zero. Measurements (58, 60, 61 bpm) would all look the same, so they start near the lowest,
+    // but a small difference must not look like a big fall: the scale always covers at least 15% of the value.
+    val span = maxOf(max - min, 0.15 * maxOf(kotlin.math.abs(max), kotlin.math.abs(min)))
+    fun part(v: Double): Double = if (a.fromZero) (if (max > 0) v / max else 0.0) else if (span > 0) 1.0 - 0.7 * (max - v) / span else 0.65
     val spoken = a.bars.joinToString(", ") { b -> "${b.label}: ${if (b.value == null) "no data" else if (b.reached) "reached" else "below"}" }
     Row(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = "${a.title}. $spoken" }, horizontalArrangement = Arrangement.spacedBy(if (a.bars.size > 10) 2.dp else 8.dp), verticalAlignment = Alignment.Bottom) {
         a.bars.forEach { b ->
