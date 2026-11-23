@@ -25,8 +25,11 @@ data class PulseColors(
     val heartLabel: Color,
     val sleep: Color,
     val sleepLabel: Color,
-    val sleepDeep: Color,
+    /** The four sleep stages: four different hues, so neighbours on the sleep clock never look alike. */
+    val sleepAwake: Color,
     val sleepRem: Color,
+    val sleepLight: Color,
+    val sleepDeep: Color,
     /** Calories. */
     val energy: Color,
     val energyLabel: Color,
@@ -43,8 +46,8 @@ data class PulseColors(
 private val DarkPulse = PulseColors(
     move = Color(0xFFF5A524), moveLabel = Color(0xFFF5B84A),
     heart = Color(0xFFFF5C74), heartLabel = Color(0xFFFF8A9B),
-    sleep = Color(0xFF8E9BFF), sleepLabel = Color(0xFFAEB7FF), sleepDeep = Color(0xFF5B68E0),
-    sleepRem = Color(0xFFC9B8FF),
+    sleep = Color(0xFF8E9BFF), sleepLabel = Color(0xFFAEB7FF),
+    sleepAwake = Color(0xFFFFA23E), sleepRem = Color(0xFFE35FB5), sleepLight = Color(0xFF4FC3F7), sleepDeep = Color(0xFF6257E8),
     energy = Color(0xFFFF7A45), energyLabel = Color(0xFFFF9A70),
     active = Color(0xFF9FD356), activeLabel = Color(0xFFB4E070),
     body = Color(0xFF2FD3C0), bodyLabel = Color(0xFF5FE3D3),
@@ -55,8 +58,8 @@ private val DarkPulse = PulseColors(
 private val LightPulse = PulseColors(
     move = Color(0xFFE8950F), moveLabel = Color(0xFFA86200),
     heart = Color(0xFFE03A57), heartLabel = Color(0xFFC42D49),
-    sleep = Color(0xFF5462E0), sleepLabel = Color(0xFF4350C9), sleepDeep = Color(0xFF2F3CA8),
-    sleepRem = Color(0xFFA48BF0),
+    sleep = Color(0xFF5462E0), sleepLabel = Color(0xFF4350C9),
+    sleepAwake = Color(0xFFE8710A), sleepRem = Color(0xFFC2389B), sleepLight = Color(0xFF2E9BE6), sleepDeep = Color(0xFF3A2FA8),
     energy = Color(0xFFDD5420), energyLabel = Color(0xFFB0400F),
     active = Color(0xFF6AA321), activeLabel = Color(0xFF41700C),
     body = Color(0xFF0E9E8E), bodyLabel = Color(0xFF0B7F72),

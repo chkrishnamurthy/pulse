@@ -20,6 +20,7 @@ object PulseIcons {
     // Metrics
     val Heart = icon("M3 12h4l2-5 4 10 2-5h6")
     val Sleep = icon("M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z")
+    val Sun = icon("M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5.3 5.3l1.4 1.4 M17.3 17.3l1.4 1.4 M18.7 5.3l-1.4 1.4 M6.7 17.3l-1.4 1.4")
     val Activity = icon("M13 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M7 21l3-6 3 2v4 M10 15l1-5 4 3h3 M6 12l2-3h4")
     val Steps = icon("M8 3c-2 0-3 2-3 4.5S6 12 6 13.5h4c0-1.5 1-3 1-6S10 3 8 3z M6.5 16.5h3v1a1.5 1.5 0 0 1-3 0z M16 6c2 0 3 2 3 4.500S18 15 18 16.500h-4c0-1.500-1-3-1-6S14 6 16 6z M14.500 19.500h3v0.500a1.500 1.500 0 0 1-3 0z")
     val Flame = icon("M12 3c0.500 4 5.500 5.500 5.500 11a5.500 5.500 0 0 1-11 0c0-2.500 1.500-3.500 2-5.500c1.500 1 2 2 2 3.500c1.500-2 2-5 1.500-9z")
@@ -40,6 +41,7 @@ object PulseIcons {
     val Minus = icon("M5 12h14")
     val Up = icon("M12 19V5 M6 11l6-6 6 6")
     val Down = icon("M12 5v14 M6 13l6 6 6-6")
+    val Chat = icon("M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z")
     val Target = icon("M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z")
     val Sync = icon("M4 12a8 8 0 0 1 14-5l2 2 M20 4v5h-5 M20 12a8 8 0 0 1-14 5l-2-2 M4 20v-5h5")
     val Layout = icon("M4 5h7v6H4z M13 5h7v9h-7z M4 13h7v6H4z M13 16h7v3h-7z")

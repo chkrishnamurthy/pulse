@@ -34,23 +34,28 @@ import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.UiPrefs
+import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 
 /** The goals the data layer stores (mirrors domain.Goals, kept UI-side so screens don't depend on it). */
-data class GoalsUi(val dailySteps: Int, val sleepMinutes: Int, val weeklyZoneMinutes: Int, val dailyFloors: Int, val dailyCalories: Int)
+data class GoalsUi(val dailySteps: Int, val sleepMinutes: Int, val weeklyZoneMinutes: Int, val dailyFloors: Int, val dailyCalories: Int, val dailyDistanceMeters: Int)
 
 @Composable
-fun GoalsScreen(goals: GoalsUi, contentPadding: PaddingValues, onBack: () -> Unit, onGoalsChange: (GoalsUi) -> Unit) {
+fun GoalsScreen(goals: GoalsUi, units: Units, contentPadding: PaddingValues, onBack: () -> Unit, onGoalsChange: (GoalsUi) -> Unit) {
     DetailPage("Goals", contentPadding, onBack) {
         RowGroup(listOf(
             { GoalStepper(GoalMetric.Steps, "Steps a day", Fmt.count(goals.dailySteps), goals.dailySteps, 500, 1_000..50_000) { onGoalsChange(goals.copy(dailySteps = it)) } },
             { GoalStepper(GoalMetric.Calories, "Calories a day", "${Fmt.count(goals.dailyCalories)} kcal", goals.dailyCalories, 50, 1_000..6_000) { onGoalsChange(goals.copy(dailyCalories = it)) } },
+            {
+                // Half a kilometre, or half a mile.
+                GoalStepper(GoalMetric.Distance, "Distance a day", goalText(GoalMetric.Distance, goals.dailyDistanceMeters.toDouble(), units), goals.dailyDistanceMeters, if (units == Units.Metric) 500 else 805, 1_000..50_000) { onGoalsChange(goals.copy(dailyDistanceMeters = it)) }
+            },
             { GoalStepper(GoalMetric.Sleep, "Sleep a night", Fmt.minutes(goals.sleepMinutes), goals.sleepMinutes, 15, 240..720) { onGoalsChange(goals.copy(sleepMinutes = it)) } },
             { GoalStepper(GoalMetric.Zone, "Zone minutes a week", "${goals.weeklyZoneMinutes} min", goals.weeklyZoneMinutes, 10, 10..1_000) { onGoalsChange(goals.copy(weeklyZoneMinutes = it)) } },
             { GoalStepper(GoalMetric.Floors, "Floors a day", "${goals.dailyFloors}", goals.dailyFloors, 1, 1..100) { onGoalsChange(goals.copy(dailyFloors = it)) } },
         ))
         Text(
-            "A new goal counts from today. Earlier days in the calendar keep the goal they had. Calories means all energy used in a day, resting included. The weekly zone goal is split over seven days.",
+            "The calendar tracks steps and calories. A new goal counts from today. Earlier days in the calendar keep the goal they had. Calories means all energy used in a day, resting included. The weekly zone goal is split over seven days.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

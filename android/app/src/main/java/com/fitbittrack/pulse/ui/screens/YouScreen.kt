@@ -54,6 +54,7 @@ fun YouScreen(
     onGoals: () -> Unit,
     onCustomize: () -> Unit,
     onSync: () -> Unit,
+    onChat: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onPrefsChange: (UiPrefs) -> Unit,
 ) {
@@ -83,6 +84,7 @@ fun YouScreen(
         RowGroup(buildList {
             add { ListRow(PulseIcons.Target, c.moveLabel, "Goals", "Steps, calories, sleep and more", onClick = onGoals) }
             add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Choose and order your cards", onClick = onCustomize) }
+            add { ListRow(PulseIcons.Chat, c.bodyLabel, "Ask Pulse", "Chat, AI on this phone, privacy", onClick = onChat) }
             if (signedIn && !isSample) add {
                 ListRow(PulseIcons.Sync, if (sync.error != null) scheme.error else c.good, "Sync and data", if (sync.needsSignIn) "Sign in again" else if (sync.error != null) "Sync problem" else sync.lastSuccessLabel, onClick = onSync)
             }

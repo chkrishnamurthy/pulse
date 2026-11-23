@@ -78,7 +78,7 @@ fun DayScreen(
                 BigGoalRing(goals, 132)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(headline(ui, date == today), style = MaterialTheme.typography.titleLarge)
-                    val missing = goals.core.filter { it.value != null && !it.met }.joinToString { if (it.metric == GoalMetric.Zone) "zone minutes" else it.metric.label.lowercase() }
+                    val missing = goals.core.filter { it.value != null && !it.met }.joinToString { it.metric.label.lowercase() }
                     Text(
                         if (missing.isEmpty()) date.format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale)) else (if (date == today) "Still to reach: " else "Missed: ") + missing,
                         style = MaterialTheme.typography.bodyMedium, color = muted,
@@ -88,7 +88,10 @@ fun DayScreen(
         }
 
         SectionTitle("Goals")
-        RowGroup(goals.items.map { g -> { GoalRow(g) { if (g.metric == GoalMetric.Sleep) onSleep() else onMetric(MetricKind.entries.first { it.goal == g.metric }) } } })
+        RowGroup(goals.core.map { g -> { GoalRow(g, units) { onMetric(MetricKind.entries.first { it.goal == g.metric }) } } })
+
+        SectionTitle("Also this day")
+        RowGroup((goals.items - goals.core.toSet()).map { g -> { GoalRow(g, units) { if (g.metric == GoalMetric.Sleep) onSleep() else onMetric(MetricKind.entries.first { it.goal == g.metric }) } } })
 
         if (ui.hourly.any { (it ?: 0) > 0 }) {
             PulseCard {
@@ -104,7 +107,7 @@ fun DayScreen(
         if (s != null) {
             SectionTitle("More from this day")
             TileRow {
-                DayTile(MetricKind.Distance, s.distanceMeters, units, Modifier.weight(1f), onMetric)
+                DayTile(MetricKind.Breathing, s.respiratoryRate, units, Modifier.weight(1f), onMetric)
                 DayTile(MetricKind.RestingHeart, s.restingHeartRate?.toDouble(), units, Modifier.weight(1f), onMetric)
             }
             TileRow {
@@ -139,7 +142,7 @@ private fun headline(ui: DayUi, isToday: Boolean): String {
 }
 
 @Composable
-private fun GoalRow(g: GoalProgress, onClick: () -> Unit) {
+private fun GoalRow(g: GoalProgress, units: Units, onClick: () -> Unit) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
@@ -155,12 +158,12 @@ private fun GoalRow(g: GoalProgress, onClick: () -> Unit) {
             ProgressBar(g.fraction ?: 0f, c.fill(g.metric.tone))
             Row {
                 Text(
-                    listOfNotNull("${goalValue(g.metric, g.value)} of ${goalValue(g.metric, g.target)}", goalUnit(g.metric)).joinToString(" "),
+                    "${goalValue(g.metric, g.value, units)} of ${goalText(g.metric, g.target, units)}",
                     style = MaterialTheme.typography.bodyMedium, color = muted, modifier = Modifier.alignByBaseline().weight(1f),
                 )
                 val rest = g.value?.let { g.target - it }
                 Text(
-                    when { rest == null -> ""; rest <= 0 -> "Reached"; else -> "${goalValue(g.metric, rest)} short" },
+                    when { rest == null -> ""; rest <= 0 -> "Reached"; else -> "${goalText(g.metric, rest, units)} short" },
                     style = MaterialTheme.typography.bodyMedium, color = if (g.met) c.good else muted, modifier = Modifier.alignByBaseline(),
                 )
             }

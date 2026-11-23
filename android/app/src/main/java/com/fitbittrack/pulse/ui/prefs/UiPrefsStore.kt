@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fitbittrack.pulse.chat.Area
+import com.fitbittrack.pulse.chat.ChatPrefs
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.model.Units
@@ -23,6 +25,9 @@ class UiPrefsStore(private val context: Context) {
     private val connectedKey = booleanPreferencesKey("connected")
     private val accountKey = stringPreferencesKey("account_name")
     private val healthConnectKey = booleanPreferencesKey("health_connect")
+    private val chatKeepKey = booleanPreferencesKey("chat_keep")
+    private val chatOffKey = stringPreferencesKey("chat_areas_off") // "Sleep,Body"
+    private val chatWifiKey = booleanPreferencesKey("chat_wifi_only")
 
     /** Whether the user connected a Google account and has not signed out. No tokens are stored. */
     data class Session(val connected: Boolean, val accountName: String?)
@@ -44,6 +49,21 @@ class UiPrefsStore(private val context: Context) {
     val healthConnect: Flow<Boolean> = context.uiPrefsStore.data.map { it[healthConnectKey] ?: false }
 
     suspend fun setHealthConnect(on: Boolean) = context.uiPrefsStore.edit { it[healthConnectKey] = on }
+
+    val chat: Flow<ChatPrefs> = context.uiPrefsStore.data.map { p ->
+        val off = p[chatOffKey].orEmpty().split(",")
+        ChatPrefs(
+            keep = p[chatKeepKey] ?: false,
+            areas = Area.entries.filter { it.name !in off }.toSet(),
+            wifiOnly = p[chatWifiKey] ?: true,
+        )
+    }
+
+    suspend fun setChat(c: ChatPrefs) = context.uiPrefsStore.edit {
+        it[chatKeepKey] = c.keep
+        it[chatOffKey] = Area.entries.filter { a -> a !in c.areas }.joinToString(",") { a -> a.name }
+        it[chatWifiKey] = c.wifiOnly
+    }
 
     val theme: Flow<ThemeMode> = context.uiPrefsStore.data.map { p ->
         p[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System

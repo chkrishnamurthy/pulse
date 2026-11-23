@@ -61,6 +61,7 @@ fun MetricScreen(
     onBack: () -> Unit,
     onRange: (ReportRange) -> Unit,
     onDay: (LocalDate) -> Unit,
+    onAsk: (String) -> Unit,
 ) {
     val c = PulseTheme.colors
     val tint = c.fill(kind.tone)
@@ -142,6 +143,7 @@ fun MetricScreen(
                 { ListRow(kind.icon, c.label(kind.tone), whenLabel(d, ui.today, locale), value = kind.text(v, units), onClick = { onDay(d) }) }
             })
         }
+        AskChips("Ask Pulse", listOf("How is my ${kind.label.lowercase()} this week?", "Compare my ${kind.label.lowercase()} with last week"), onAsk)
         Text(kind.about, style = MaterialTheme.typography.bodyMedium, color = muted)
     }
 }

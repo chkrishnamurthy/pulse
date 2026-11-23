@@ -116,7 +116,7 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, he
 fun StageBar(shares: StageShares, modifier: Modifier = Modifier) {
     val c = PulseTheme.colors
     Row(modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        listOf(shares.deep to c.sleepDeep, shares.light to c.sleep, shares.rem to c.sleepRem, shares.awake to c.heart)
+        listOf(shares.deep to c.sleepDeep, shares.light to c.sleepLight, shares.rem to c.sleepRem, shares.awake to c.sleepAwake)
             .filter { it.first > 0f }
             .forEach { (w, color) -> Box(Modifier.weight(w).height(8.dp).background(color)) }
     }

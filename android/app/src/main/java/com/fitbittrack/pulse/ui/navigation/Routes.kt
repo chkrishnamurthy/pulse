@@ -16,5 +16,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object GoalsRoute
 @Serializable data object CustomizeRoute
 @Serializable data object SyncRoute
+@Serializable data class ChatRoute(val question: String? = null)
+@Serializable data object ChatSetupRoute
+@Serializable data object ChatSettingsRoute
 @Serializable data class DayRoute(val epochDay: Long)
 @Serializable data class MetricRoute(val kind: String)

@@ -10,11 +10,12 @@ import java.time.YearMonth
 import java.time.ZoneId
 import kotlin.math.roundToInt
 
-/** The goals the calendar can show. The order is the order around the ring. */
+/** Every daily goal. [GoalCalendar.CORE] are the ones the calendar counts. The order is the order around the ring. */
 enum class GoalMetric(val label: String) {
     Steps("Steps"),
     Sleep("Sleep"),
     Calories("Calories"),
+    Distance("Distance"),
     Zone("Zone minutes"),
     Floors("Floors"),
 }
@@ -30,6 +31,8 @@ data class GoalProgress(val metric: GoalMetric, val value: Double?, val target: 
 data class DayGoals(val date: LocalDate, val items: List<GoalProgress>) {
     operator fun get(metric: GoalMetric): GoalProgress = items.first { it.metric == metric }
     val core: List<GoalProgress> get() = items.filter { it.metric in GoalCalendar.CORE }
+    /** The rings on Today. */
+    val todayGoals: List<GoalProgress> get() = items.filter { it.metric in GoalCalendar.TODAY }
     val coreMet: Int get() = core.count { it.met }
     val hasData: Boolean get() = items.any { it.value != null }
 
@@ -51,6 +54,9 @@ data class MonthUi(
     val daysMet: Int,
     val currentStreak: Int,
     val bestStreak: Int,
+    /** Today itself, whichever month is open, and the streak of complete days. */
+    val todayGoals: DayGoals?,
+    val allGoalsStreak: Int,
     /** Average of the metric over days with data (null for "All goals"). */
     val average: Double?,
     val target: Double?,
@@ -59,8 +65,11 @@ data class MonthUi(
 /** Goal rules. Plain functions: easy to test. */
 object GoalCalendar {
 
-    /** The goals that make up "All goals". Floors is extra: not everyone has stairs. */
-    val CORE = setOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories, GoalMetric.Zone)
+    /** The goals the calendar tracks. A day is complete when all of them are reached. */
+    val CORE = setOf(GoalMetric.Steps, GoalMetric.Calories)
+
+    /** The goals shown as rings on Today. */
+    val TODAY = setOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories, GoalMetric.Zone)
 
     /** The targets that applied on [date]: the newest change on or before it, else the oldest known. */
     fun goalsOn(history: List<DatedGoals>, date: LocalDate): Goals {
@@ -74,6 +83,7 @@ object GoalCalendar {
             GoalProgress(GoalMetric.Steps, summary?.steps?.toDouble(), goals.dailySteps.toDouble()),
             GoalProgress(GoalMetric.Sleep, sleepMinutes?.toDouble(), goals.sleepMinutes.toDouble()),
             GoalProgress(GoalMetric.Calories, summary?.caloriesKcal, goals.dailyCalories.toDouble()),
+            GoalProgress(GoalMetric.Distance, summary?.distanceMeters, goals.dailyDistanceMeters.toDouble()),
             GoalProgress(GoalMetric.Zone, summary?.activeZoneMinutes?.toDouble(), (goals.weeklyActiveZoneMinutes / 7.0).roundToInt().coerceAtLeast(1).toDouble()),
             GoalProgress(GoalMetric.Floors, summary?.floors?.toDouble(), goals.dailyFloors.toDouble()),
         ),
@@ -127,6 +137,8 @@ object GoalCalendar {
             daysMet = withData.count { it.met(metric) },
             currentStreak = currentStreak(allDays, metric, today),
             bestStreak = bestStreak(allDays.filter { it.date <= today }, metric),
+            todayGoals = byDate[today],
+            allGoalsStreak = currentStreak(allDays, null, today),
             average = metric?.let { m -> withData.mapNotNull { it[m].value }.takeIf { it.isNotEmpty() }?.average() },
             target = metric?.let { m -> (days.lastOrNull { it.date <= today } ?: days.last())[m].target },
         )

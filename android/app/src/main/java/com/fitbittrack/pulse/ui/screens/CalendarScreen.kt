@@ -54,6 +54,7 @@ import com.fitbittrack.pulse.ui.components.SampleBanner
 import com.fitbittrack.pulse.ui.components.TabHeader
 import com.fitbittrack.pulse.ui.components.TileRow
 import com.fitbittrack.pulse.ui.components.fill
+import com.fitbittrack.pulse.ui.components.icon
 import com.fitbittrack.pulse.ui.components.label
 import com.fitbittrack.pulse.ui.components.tone
 import com.fitbittrack.pulse.ui.format.Fmt
@@ -61,6 +62,7 @@ import com.fitbittrack.pulse.ui.goals.DayGoals
 import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.goals.MonthUi
+import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 import java.time.LocalDate
 import java.time.YearMonth
@@ -68,12 +70,14 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 
 /** "8,420", "6h 48m": how a goal's numbers are written everywhere. */
-fun goalValue(metric: GoalMetric, v: Double?): String = when (metric) {
+fun goalValue(metric: GoalMetric, v: Double?, units: Units): String = when (metric) {
+    GoalMetric.Distance -> Fmt.distance(v, units).first
     GoalMetric.Sleep -> Fmt.minutes(v?.toInt())
     else -> Fmt.whole(v)
 }
 
-fun goalUnit(metric: GoalMetric): String? = when (metric) {
+fun goalUnit(metric: GoalMetric, units: Units): String? = when (metric) {
+    GoalMetric.Distance -> Fmt.distance(null, units).second
     GoalMetric.Steps -> "steps"
     GoalMetric.Calories -> "kcal"
     GoalMetric.Zone -> "min"
@@ -81,11 +85,13 @@ fun goalUnit(metric: GoalMetric): String? = when (metric) {
     GoalMetric.Sleep -> null
 }
 
-private fun withUnit(metric: GoalMetric, v: Double?) = listOfNotNull(goalValue(metric, v), goalUnit(metric)).joinToString(" ")
+/** "8,420 steps", "6.1 km". */
+fun goalText(metric: GoalMetric, v: Double?, units: Units): String = listOfNotNull(goalValue(metric, v, units), goalUnit(metric, units)).joinToString(" ")
 
 @Composable
 fun CalendarScreen(
     ui: MonthUi,
+    units: Units,
     isSample: Boolean,
     contentPadding: PaddingValues,
     onConnect: () -> Unit,
@@ -102,10 +108,12 @@ fun CalendarScreen(
         }
         if (isSample) SampleBanner(onConnect)
 
+        ui.todayGoals?.let { TodayTargets(it, ui.allGoalsStreak, units) { onDay(ui.today) } }
+
         // --- Which goal ---
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GoalChip("All goals", null, ui.metric == null) { onMetric(null) }
-            GoalMetric.entries.forEach { m -> GoalChip(m.label, m, ui.metric == m) { onMetric(m) } }
+            GoalMetric.entries.filter { it in GoalCalendar.CORE }.forEach { m -> GoalChip(m.label, m, ui.metric == m) { onMetric(m) } }
         }
 
         // --- Month ---
@@ -147,7 +155,7 @@ fun CalendarScreen(
                         (0 until 7).forEach { col ->
                             val day = ui.days.getOrNull(r * 7 + col - ui.leadingBlanks)
                             Box(Modifier.weight(1f).aspectRatio(1f).padding(2.dp)) {
-                                if (day != null) DayCell(day, ui.metric, ui.today, onDay)
+                                if (day != null) DayCell(day, ui.metric, ui.today, units, onDay)
                             }
                         }
                     }
@@ -170,19 +178,56 @@ fun CalendarScreen(
         }
         if (ui.metric != null) {
             TileRow {
-                MetricTile("Month average", PulseTheme.colors.label(ui.metric.tone), goalValue(ui.metric, ui.average), goalUnit(ui.metric), Modifier.weight(1f))
-                MetricTile("Daily target", PulseTheme.colors.label(ui.metric.tone), goalValue(ui.metric, ui.target), goalUnit(ui.metric), Modifier.weight(1f))
+                MetricTile("Month average", PulseTheme.colors.label(ui.metric.tone), goalValue(ui.metric, ui.average, units), goalUnit(ui.metric, units), Modifier.weight(1f))
+                MetricTile("Daily target", PulseTheme.colors.label(ui.metric.tone), goalValue(ui.metric, ui.target, units), goalUnit(ui.metric, units), Modifier.weight(1f))
             }
         }
     }
+}
+
+/** What is left to do today, and the streak it keeps alive. */
+@Composable
+private fun TodayTargets(day: DayGoals, streak: Int, units: Units, onClick: () -> Unit) {
+    val c = PulseTheme.colors
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val done = day.met(null)
+    PulseCard(onClick = onClick) {
+        CardHeader("Today", "${day.coreMet} of ${day.core.size} done", if (done) c.good else muted)
+        day.core.forEach { g ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(if (g.met) PulseIcons.Check else g.metric.icon, contentDescription = null, tint = c.label(g.metric.tone), modifier = Modifier.size(24.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(g.metric.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.alignByBaseline().weight(1f))
+                        Text(
+                            g.value.let { v -> if (v == null) "No data" else if (g.met) "Done" else "${goalText(g.metric, g.target - v, units)} to go" },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (g.met) c.good else MaterialTheme.colorScheme.onSurface, modifier = Modifier.alignByBaseline(),
+                        )
+                    }
+                    ProgressBar(g.fraction ?: 0f, c.fill(g.metric.tone))
+                    Text("${goalValue(g.metric, g.value, units)} of ${goalText(g.metric, g.target, units)}", style = MaterialTheme.typography.bodyMedium, color = muted)
+                }
+            }
+        }
+        Text(streakText(done, streak), style = MaterialTheme.typography.titleSmall, color = if (done) c.good else MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+/** [streak] counts today only when today is done. */
+internal fun streakText(done: Boolean, streak: Int): String = when {
+    done && streak > 1 -> "Both done. $streak days in a row."
+    done -> "Both done. Your streak starts today."
+    streak > 0 -> "Reach both today to make it ${streak + 1} days in a row."
+    else -> "Reach both today to start a streak."
 }
 
 private fun days(n: Int) = if (n == 1) "day" else "days"
 
 private fun summary(ui: MonthUi): String = when {
     ui.daysWithData == 0 -> "No data for this month."
-    ui.metric == null && ui.daysMet == 0 -> "A day counts when steps, sleep, calories and zone minutes all reach their target."
-    ui.metric == null -> "Days when steps, sleep, calories and zone minutes all reached their target."
+    ui.metric == null && ui.daysMet == 0 -> "A day counts when steps and calories both reach their target."
+    ui.metric == null -> "Days when steps and calories both reached their target."
     else -> "Each day is judged by the target you had on that day."
 }
 
@@ -206,7 +251,7 @@ private fun GoalChip(text: String, metric: GoalMetric?, selected: Boolean, onCli
 
 /** One day: ring = progress, tinted centre = reached, solid centre = today. */
 @Composable
-private fun DayCell(day: DayGoals, metric: GoalMetric?, today: LocalDate, onDay: (LocalDate) -> Unit) {
+private fun DayCell(day: DayGoals, metric: GoalMetric?, today: LocalDate, units: Units, onDay: (LocalDate) -> Unit) {
     val c = PulseTheme.colors
     val scheme = MaterialTheme.colorScheme
     val locale = LocalConfiguration.current.locales[0]
@@ -221,7 +266,7 @@ private fun DayCell(day: DayGoals, metric: GoalMetric?, today: LocalDate, onDay:
             future -> append(", in the future")
             !hasData -> append(", no data")
             metric == null -> append(", ${day.coreMet} of ${day.core.size} goals reached")
-            else -> append(", ${withUnit(metric, day[metric].value)} of ${withUnit(metric, day[metric].target)}${if (met) ", reached" else ""}")
+            else -> append(", ${goalText(metric, day[metric].value, units)} of ${goalText(metric, day[metric].target, units)}${if (met) ", reached" else ""}")
         }
     }
     Box(
@@ -262,7 +307,7 @@ private fun Legend(metric: GoalMetric?) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-        val items = if (metric == null) GoalMetric.entries.filter { it in GoalCalendar.CORE }.map { (if (it == GoalMetric.Zone) "Zone" else it.label) to c.fill(it.tone) }
+        val items = if (metric == null) GoalMetric.entries.filter { it in GoalCalendar.CORE }.map { it.label to c.fill(it.tone) }
         else listOf("Ring: how far" to c.fill(metric.tone), "Filled: reached" to c.fill(metric.tone).copy(alpha = 0.4f))
         items.forEach { (text, color) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -303,7 +348,7 @@ fun WeekStrip(days: List<DayGoals>, today: LocalDate, onDay: (LocalDate) -> Unit
 
 /** One goal as a compact ring with its numbers, for Today. */
 @Composable
-fun GoalTile(goal: com.fitbittrack.pulse.ui.goals.GoalProgress, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
+fun GoalTile(goal: com.fitbittrack.pulse.ui.goals.GoalProgress, units: Units, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
     val c = PulseTheme.colors
     Column(
         modifier.clip(MaterialTheme.shapes.large).clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp, horizontal = 2.dp),
@@ -314,8 +359,8 @@ fun GoalTile(goal: com.fitbittrack.pulse.ui.goals.GoalProgress, icon: androidx.c
             Icon(if (goal.met) PulseIcons.Check else icon, contentDescription = null, tint = c.label(goal.metric.tone), modifier = Modifier.size(22.dp))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FitText(goalValue(goal.metric, goal.value), MaterialTheme.typography.titleSmall, MaterialTheme.colorScheme.onSurface)
-            FitText("of ${goalValue(goal.metric, goal.target)}", MaterialTheme.typography.bodySmall, MaterialTheme.colorScheme.onSurfaceVariant)
+            FitText(goalValue(goal.metric, goal.value, units), MaterialTheme.typography.titleSmall, MaterialTheme.colorScheme.onSurface)
+            FitText("of ${goalValue(goal.metric, goal.target, units)}", MaterialTheme.typography.bodySmall, MaterialTheme.colorScheme.onSurfaceVariant)
             FitText(if (goal.metric == GoalMetric.Zone) "Zone min" else goal.metric.label, MaterialTheme.typography.labelMedium, c.label(goal.metric.tone))
         }
     }

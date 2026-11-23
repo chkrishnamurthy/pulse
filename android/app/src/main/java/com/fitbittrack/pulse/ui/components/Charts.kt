@@ -26,8 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.model.NightBar
-import com.fitbittrack.pulse.ui.model.Stage
-import com.fitbittrack.pulse.ui.model.StageBlock
 import com.fitbittrack.pulse.ui.theme.BodyFamily
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 import java.time.LocalTime
@@ -173,36 +171,6 @@ fun Sparkline(values: List<Float?>, color: Color, modifier: Modifier = Modifier)
     }
 }
 
-/** Sleep stages through the night: one row per stage, blocks along time. */
-@Composable
-fun Hypnogram(blocks: List<StageBlock>, totalMinutes: Int, startLabel: String, endLabel: String, modifier: Modifier = Modifier) {
-    val c = PulseTheme.colors
-    val axis = MaterialTheme.colorScheme.onSurfaceVariant
-    val measurer = rememberTextMeasurer()
-    val rows = listOf(Stage.Awake, Stage.Rem, Stage.Light, Stage.Deep)
-    val names = mapOf(Stage.Awake to "Awake", Stage.Rem to "REM", Stage.Light to "Light", Stage.Deep to "Deep")
-    Canvas(modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = "Sleep stages through the night" }) {
-        val left = 46.dp.toPx()
-        val labelH = 16.dp.toPx()
-        val rowH = (size.height - labelH) / rows.size
-        val w = size.width - left
-        rows.forEachIndexed { r, stage ->
-            drawLine(c.track, Offset(left, r * rowH + rowH / 2), Offset(size.width, r * rowH + rowH / 2), 1.dp.toPx())
-            val layout = measurer.measure(names.getValue(stage), axisStyle.copy(color = axis))
-            drawText(layout, topLeft = Offset(0f, r * rowH + (rowH - layout.size.height) / 2))
-        }
-        val total = totalMinutes.coerceAtLeast(1)
-        blocks.forEach { b ->
-            val r = rows.indexOf(b.stage)
-            val x = left + b.startMinute.toFloat() / total * w
-            val bw = ((b.endMinute - b.startMinute).toFloat() / total * w - 1f).coerceAtLeast(2f)
-            drawRoundRect(stageColor(b.stage, c), Offset(x, r * rowH + rowH * 0.15f), Size(bw, rowH * 0.7f), CornerRadius(4.dp.toPx()))
-        }
-        drawLabel(measurer, startLabel, left + 26.dp.toPx(), size.height - labelH / 2, axis)
-        drawLabel(measurer, endLabel, size.width - 26.dp.toPx(), size.height - labelH / 2, axis)
-    }
-}
-
 /** When you were asleep, one column per night. The scale fits the nights shown. */
 @Composable
 fun BedtimeChart(week: List<NightBar>, modifier: Modifier = Modifier) {
@@ -235,13 +203,6 @@ fun BedtimeChart(week: List<NightBar>, modifier: Modifier = Modifier) {
             drawLabel(measurer, n.label, x + w / 2, size.height - labelH / 2, if (n.isLast) strong else axis)
         }
     }
-}
-
-fun stageColor(stage: Stage, c: com.fitbittrack.pulse.ui.theme.PulseColors): Color = when (stage) {
-    Stage.Awake -> c.heart
-    Stage.Rem -> c.sleepRem
-    Stage.Light -> c.sleep
-    Stage.Deep -> c.sleepDeep
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLabel(

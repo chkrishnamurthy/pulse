@@ -33,7 +33,8 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         val azmGoal = intPreferencesKey("goal_azm_week")
         val floorsGoal = intPreferencesKey("goal_floors")
         val caloriesGoal = intPreferencesKey("goal_calories")
-        /** "epochDay:steps:sleep:zone:floors:calories|…", oldest first. */
+        val distanceGoal = intPreferencesKey("goal_distance_m")
+        /** "epochDay:steps:sleep:zone:floors:calories:distance|…", oldest first. Entries from before the distance goal have no last part. */
         val goalHistory = stringPreferencesKey("goal_history")
 
         val state = stringPreferencesKey("sync_state") // idle | running | failed
@@ -59,8 +60,11 @@ class SettingsStore(private val store: DataStore<Preferences>) {
 
     private fun readHistory(p: Preferences): List<DatedGoals> = p[K.goalHistory].orEmpty().split("|").mapNotNull { entry ->
         val n = entry.split(":").mapNotNull { it.toLongOrNull() }
-        if (n.size != 6) null
-        else DatedGoals(LocalDate.ofEpochDay(n[0]), Goals(n[1].toInt(), n[2].toInt(), n[3].toInt(), n[4].toInt(), n[5].toInt()))
+        if (n.size !in 6..7) null
+        else DatedGoals(
+            LocalDate.ofEpochDay(n[0]),
+            Goals(n[1].toInt(), n[2].toInt(), n[3].toInt(), n[4].toInt(), n[5].toInt(), n.getOrNull(6)?.toInt() ?: Goals().dailyDistanceMeters),
+        )
     }
 
     private fun readGoals(p: Preferences): Goals {
@@ -71,6 +75,7 @@ class SettingsStore(private val store: DataStore<Preferences>) {
             weeklyActiveZoneMinutes = p[K.azmGoal] ?: d.weeklyActiveZoneMinutes,
             dailyFloors = p[K.floorsGoal] ?: d.dailyFloors,
             dailyCalories = p[K.caloriesGoal] ?: d.dailyCalories,
+            dailyDistanceMeters = p[K.distanceGoal] ?: d.dailyDistanceMeters,
         )
     }
 
@@ -79,13 +84,14 @@ class SettingsStore(private val store: DataStore<Preferences>) {
             val before = readGoals(it)
             if (before == g) return@edit
             it[K.goalHistory] = DatedGoals.record(readHistory(it), before, g, today).joinToString("|") { (from, x) ->
-                listOf(from.toEpochDay(), x.dailySteps, x.sleepMinutes, x.weeklyActiveZoneMinutes, x.dailyFloors, x.dailyCalories).joinToString(":")
+                listOf(from.toEpochDay(), x.dailySteps, x.sleepMinutes, x.weeklyActiveZoneMinutes, x.dailyFloors, x.dailyCalories, x.dailyDistanceMeters).joinToString(":")
             }
             it[K.caloriesGoal] = g.dailyCalories
             it[K.stepsGoal] = g.dailySteps
             it[K.sleepGoal] = g.sleepMinutes
             it[K.azmGoal] = g.weeklyActiveZoneMinutes
             it[K.floorsGoal] = g.dailyFloors
+            it[K.distanceGoal] = g.dailyDistanceMeters
         }
     }
 

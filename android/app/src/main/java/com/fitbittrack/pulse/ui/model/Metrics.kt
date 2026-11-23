@@ -24,7 +24,7 @@ enum class MetricKind(
     Steps("Steps", Tone.Move, GoalMetric.Steps, true, true, "Counted by your band all day.", { it.steps?.toDouble() }),
     Calories("Calories", Tone.Energy, GoalMetric.Calories, true, true, "All energy used in a day: resting plus activity.", { it.caloriesKcal }),
     Zone("Zone minutes", Tone.Active, GoalMetric.Zone, true, true, "Minutes with a raised heart rate. Harder zones count double.", { it.activeZoneMinutes?.toDouble() }),
-    Distance("Distance", Tone.Move, null, true, true, "Worked out from your steps and workouts.", { it.distanceMeters }),
+    Distance("Distance", Tone.Body, GoalMetric.Distance, true, true, "Worked out from your steps and workouts.", { it.distanceMeters }),
     Floors("Floors", Tone.Body, GoalMetric.Floors, true, true, "One floor is about 3 metres up.", { it.floors?.toDouble() }),
     RestingHeart("Resting heart rate", Tone.Heart, null, false, false, "Your heart rate when fully at rest. Lower is usually better.", { it.restingHeartRate?.toDouble() }),
     Hrv("Heart rate variability", Tone.Heart, null, false, false, "Tiny changes between heartbeats, measured in your sleep. Compare with your own normal.", { it.hrvMs }),

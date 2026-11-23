@@ -73,6 +73,7 @@ data class Goals(
     val dailyFloors: Int = 10,
     /** All energy used in a day, resting included (Google's total calories). */
     val dailyCalories: Int = 2800,
+    val dailyDistanceMeters: Int = 7000,
 )
 
 /** Goals that apply from [from] on, until the next entry. The calendar judges each day by its own goals. */

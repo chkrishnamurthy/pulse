@@ -35,6 +35,7 @@ fun HeartScreen(
     onOpenLive: () -> Unit,
     onBack: () -> Unit,
     onMetric: (MetricKind) -> Unit,
+    onAsk: (String) -> Unit,
 ) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -100,6 +101,7 @@ fun HeartScreen(
             ProgressBar((heart.zoneMinutes ?: 0).toFloat() / heart.zoneMinutesTarget.coerceAtLeast(1), c.active, height = 10)
         }
         if (!isSample) RowGroup(listOf({ ListRow(PulseIcons.Heart, c.heartLabel, "Live heart rate", "Straight from your band", onClick = onOpenLive) }))
+        AskChips("Ask about your heart", listOf("Is my resting heart rate normal for me?", "How is my HRV?"), onAsk)
         if (heart.range == Range.Day) Text("Shaded bands are rough effort zones worked out by Pulse, not Google's official ones.", style = MaterialTheme.typography.bodySmall, color = muted)
     }
 }

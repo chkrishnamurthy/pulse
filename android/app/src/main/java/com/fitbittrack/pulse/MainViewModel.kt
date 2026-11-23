@@ -6,6 +6,8 @@ import android.content.IntentSender
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitbittrack.pulse.auth.GoogleHealthAuth
+import com.fitbittrack.pulse.chat.CHAT_FILE
+import com.fitbittrack.pulse.chat.ChatStore
 import com.fitbittrack.pulse.data.HealthApi
 import com.fitbittrack.pulse.direct.LocalLane
 import com.fitbittrack.pulse.ui.DataLayerBridge
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 /** App-shell state: sign-in, theme, look-and-feel preferences. Health data lives in DashboardViewModel. */
 data class UiState(
@@ -138,6 +141,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         val accountName = _state.value.accountName ?: prefsStore.session.first().accountName
         DataLayerBridge.onSignedOut(app)
         LocalLane.get(app).turnOff()
+        ChatStore(File(app.noBackupFilesDir, CHAT_FILE)).clear()
         try {
             DataLayerBridge.realRepository(app).deleteAllLocalData()
         } catch (e: CancellationException) {

@@ -35,7 +35,7 @@ fun ActivityScreen(activity: ActivityUi?, units: Units, contentPadding: PaddingV
         }
         TileRow {
             val (d, u) = Fmt.distance(activity.weekDistanceMeters, units)
-            MetricTile("Distance", c.moveLabel, d, u, Modifier.weight(1f))
+            MetricTile("Distance", c.bodyLabel, d, u, Modifier.weight(1f))
             MetricTile("Active time", c.activeLabel, Fmt.minutes(activity.weekActiveMinutes?.toInt()), null, Modifier.weight(1f))
         }
 

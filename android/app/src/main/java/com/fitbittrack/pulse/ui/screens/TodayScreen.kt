@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -76,6 +77,7 @@ fun TodayScreen(
     onDay: (LocalDate) -> Unit,
     onMetric: (MetricKind) -> Unit,
     onOpenSleep: () -> Unit,
+    onAsk: (String?) -> Unit,
 ) {
     val c = PulseTheme.colors
     val shown = prefs.todayCards.filter { it.second }.map { it.first }
@@ -84,6 +86,7 @@ fun TodayScreen(
             val locale = LocalConfiguration.current.locales[0]
             TabHeader("Today", today.date.format(DateTimeFormatter.ofPattern("EEEE d MMMM", locale))) {
                 if (!isSample) SyncChip(sync, onOpenSync)
+                IconButton(onClick = { onAsk(null) }) { Icon(PulseIcons.Chat, contentDescription = "Ask Pulse") }
             }
             if (isSample) SampleBanner(onConnect)
             if (sync.firstSyncPending || sync.historyLabel != null) FirstSyncCard(sync)
@@ -112,10 +115,10 @@ fun TodayScreen(
             val goalsToday = week.lastOrNull { it.date == today.date }
             if (goalsToday != null) {
                 PulseCard {
-                    CardHeader("Daily goals", "${goalsToday.coreMet} of ${goalsToday.core.size} reached")
+                    CardHeader("Daily goals", "${goalsToday.todayGoals.count { it.met }} of ${goalsToday.todayGoals.size} reached")
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        goalsToday.core.forEach { g ->
-                            GoalTile(g, g.metric.icon, Modifier.weight(1f)) {
+                        goalsToday.todayGoals.forEach { g ->
+                            GoalTile(g, prefs.units, g.metric.icon, Modifier.weight(1f)) {
                                 if (g.metric == GoalMetric.Sleep) onOpenSleep() else onMetric(MetricKind.entries.first { it.goal == g.metric })
                             }
                         }
@@ -123,7 +126,10 @@ fun TodayScreen(
                 }
                 PulseCard(onClick = onCalendar) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Last 7 days", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text("Last 7 days", style = MaterialTheme.typography.titleMedium)
+                            Text("Steps and calories", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         Text("Calendar", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Icon(PulseIcons.Forward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp).size(16.dp))
                     }
@@ -131,7 +137,9 @@ fun TodayScreen(
                 }
             }
 
-            today.insight?.let { InsightCard(it.title, it.body, it.positive) }
+            today.insight?.let { i ->
+                InsightCard(i.title, i.body, i.positive) { onAsk(if ("heart" in i.title.lowercase()) "Is my resting heart rate normal for me?" else "How did I sleep this week?") }
+            }
 
             val tiles = shown.filter { it != TodayCard.Dial }
             tiles.chunked(2).forEach { row ->
@@ -178,13 +186,14 @@ private fun FirstSyncCard(sync: SyncUi) {
 }
 
 @Composable
-private fun InsightCard(title: String, body: String, positive: Boolean) {
+private fun InsightCard(title: String, body: String, positive: Boolean, onAsk: () -> Unit) {
     PulseCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.padding(top = 6.dp).size(10.dp).background(if (positive) PulseTheme.colors.good else PulseTheme.colors.heart, CircleShape).align(Alignment.Top))
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = onAsk, contentPadding = PaddingValues(0.dp)) { Text("Ask about this") }
             }
         }
     }

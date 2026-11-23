@@ -3,6 +3,7 @@ package com.fitbittrack.pulse.ui
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fitbittrack.pulse.data.local.SettingsStore
 import com.fitbittrack.pulse.domain.DatedGoals
 import com.fitbittrack.pulse.domain.DaySummary
@@ -14,6 +15,7 @@ import com.fitbittrack.pulse.ui.model.MetricKind
 import com.fitbittrack.pulse.ui.model.MetricMapper
 import com.fitbittrack.pulse.ui.model.ReportRange
 import com.fitbittrack.pulse.ui.model.Units
+import com.fitbittrack.pulse.ui.screens.streakText
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -54,10 +56,39 @@ class GoalCalendarTest {
         assertFalse(d.met(null))
     }
 
-    @Test fun `all goals needs steps, sleep, calories and zone minutes, not floors`() {
-        val s = DaySummary(today, steps = 12_000, caloriesKcal = 2_900.0, activeZoneMinutes = 21, floors = 0)
-        assertTrue(GoalCalendar.day(today, s, 480, goals).met(null))
-        assertFalse(GoalCalendar.day(today, s, 479, goals).met(null))
+    @Test fun `a complete day needs steps and calories only`() {
+        val s = DaySummary(today, steps = 10_000, caloriesKcal = 2_900.0)
+        val day = GoalCalendar.day(today, s, null, goals)
+        assertEquals(listOf(GoalMetric.Steps, GoalMetric.Calories), day.core.map { it.metric })
+        assertTrue(day.met(null)) // no distance, sleep, zone minutes or floors
+        assertFalse(GoalCalendar.day(today, s.copy(steps = 9_999), 480, goals).met(null))
+        assertFalse(GoalCalendar.day(today, s.copy(caloriesKcal = 2_799.0), 480, goals).met(null))
+    }
+
+    @Test fun `the month carries today and the streak of complete days`() {
+        val sums = (0L..3L).map { DaySummary(today.minusDays(it), steps = if (it == 0L) 3_000 else 11_000, caloriesKcal = 2_900.0) }
+        val all = GoalCalendar.days(today.minusDays(9), today, sums, emptyList(), always(), utc)
+        val old = GoalCalendar.month(YearMonth.of(2026, 10), GoalMetric.Calories, all, today, DayOfWeek.MONDAY)
+        assertEquals(3, old.allGoalsStreak)
+        assertEquals(1, old.todayGoals!!.coreMet)
+    }
+
+    @Test fun `the streak line says what to do`() {
+        assertEquals("Reach both today to make it 4 days in a row.", streakText(false, 3))
+        assertEquals("Reach both today to start a streak.", streakText(false, 0))
+        assertEquals("Both done. Your streak starts today.", streakText(true, 1))
+        assertEquals("Both done. 4 days in a row.", streakText(true, 4))
+    }
+
+    @Test fun `goal history saved before the distance goal still loads`() = runBlocking {
+        val memory = Memory()
+        memory.updateData { p -> p.toMutablePreferences().apply { this[stringPreferencesKey("goal_history")] = "0:9000:450:140:8:2600|20000:8000:480:150:10:2700" } }
+        val store = SettingsStore(memory)
+        assertEquals(listOf(9_000, 8_000), store.goalHistory.first().map { it.goals.dailySteps })
+        assertEquals(listOf(7_000, 7_000), store.goalHistory.first().map { it.goals.dailyDistanceMeters })
+        store.setGoals(store.goals.first().copy(dailyDistanceMeters = 5_500), today)
+        assertEquals(5_500, store.goals.first().dailyDistanceMeters)
+        assertEquals(listOf(7_000, 7_000, 5_500), store.goalHistory.first().map { it.goals.dailyDistanceMeters })
     }
 
     @Test fun `each day is judged by the target it had`() {

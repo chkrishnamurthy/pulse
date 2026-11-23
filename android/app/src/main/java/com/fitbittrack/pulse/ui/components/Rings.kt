@@ -56,6 +56,7 @@ val GoalMetric.tone: Tone
         GoalMetric.Steps -> Tone.Move
         GoalMetric.Sleep -> Tone.Sleep
         GoalMetric.Calories -> Tone.Energy
+        GoalMetric.Distance -> Tone.Body
         GoalMetric.Zone -> Tone.Active
         GoalMetric.Floors -> Tone.Body
     }
@@ -65,6 +66,7 @@ val GoalMetric.icon
         GoalMetric.Steps -> PulseIcons.Steps
         GoalMetric.Sleep -> PulseIcons.Sleep
         GoalMetric.Calories -> PulseIcons.Flame
+        GoalMetric.Distance -> PulseIcons.Distance
         GoalMetric.Zone -> PulseIcons.Bolt
         GoalMetric.Floors -> PulseIcons.Floors
     }

@@ -70,6 +70,9 @@ class DashboardViewModel(
     private val sample = SampleHealthRepository()
     private val source = MutableStateFlow(Source(sample, true))
 
+    /** What the screens read right now (sample or real). Chat reads the same. */
+    val repository: HealthRepository get() = source.value.repo
+
     val isSample: StateFlow<Boolean> = source.map { it.isSample }.stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /** Called by the app shell: real repository when an account is connected, null for sample data. */
@@ -98,8 +101,8 @@ class DashboardViewModel(
 
     val goals: StateFlow<Goals> = source.flatMapLatest { it.repo.goals }.state(Goals())
 
-    val goalsUi: StateFlow<GoalsUi> = goals.map { GoalsUi(it.dailySteps, it.sleepMinutes, it.weeklyActiveZoneMinutes, it.dailyFloors, it.dailyCalories) }
-        .state(GoalsUi(10_000, 480, 150, 10, 2_800))
+    val goalsUi: StateFlow<GoalsUi> = goals.map { GoalsUi(it.dailySteps, it.sleepMinutes, it.weeklyActiveZoneMinutes, it.dailyFloors, it.dailyCalories, it.dailyDistanceMeters) }
+        .state(GoalsUi(10_000, 480, 150, 10, 2_800, 7_000))
 
     val sync: StateFlow<SyncUi> = source.flatMapLatest { s -> s.repo.syncStatus.map { Mappers.sync(it, s.isSample) } }
         .state(SyncUi(false, null, null, false, "Not synced yet", "unknown", firstSyncPending = false))
@@ -205,7 +208,7 @@ class DashboardViewModel(
     fun setReportRange(r: ReportRange) { reportRange.value = r }
 
     fun setGoals(g: GoalsUi) = launchSafely {
-        source.value.repo.setGoals(Goals(g.dailySteps, g.sleepMinutes, g.weeklyZoneMinutes, g.dailyFloors, g.dailyCalories))
+        source.value.repo.setGoals(Goals(g.dailySteps, g.sleepMinutes, g.weeklyZoneMinutes, g.dailyFloors, g.dailyCalories, g.dailyDistanceMeters))
     }
 
     /** Pull-to-refresh / Sync now. Failures show through the sync status, not as a crash. */
