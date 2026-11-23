@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.sp
 import com.fitbittrack.pulse.chat.Answer
 import com.fitbittrack.pulse.chat.ChatItem
 import com.fitbittrack.pulse.chat.ChatState
-import com.fitbittrack.pulse.chat.ModelState
 import com.fitbittrack.pulse.chat.Suggestions
 import com.fitbittrack.pulse.ui.components.BigValue
 import com.fitbittrack.pulse.ui.components.CardHeader
@@ -77,14 +76,11 @@ import com.fitbittrack.pulse.ui.theme.PulseTheme
 @Composable
 fun ChatScreen(
     state: ChatState,
-    model: ModelState,
     isSample: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onAsk: (String) -> Unit,
-    onStop: () -> Unit,
     onNewChat: () -> Unit,
-    onSetup: () -> Unit,
 ) {
     val c = PulseTheme.colors
     val scheme = MaterialTheme.colorScheme
@@ -93,9 +89,8 @@ fun ChatScreen(
     var draft by rememberSaveable { mutableStateOf("") }
     val send = { if (draft.isNotBlank() && !state.busy) { onAsk(draft); draft = "" } }
 
-    // Follow the conversation: a new item or a longer answer scrolls into view.
-    val lastLength = (state.items.lastOrNull() as? ChatItem.Reply)?.ai?.length ?: 0
-    LaunchedEffect(state.items.size, lastLength / 40) { if (state.items.isNotEmpty()) list.animateScrollToItem(state.items.size) else list.scrollToItem(0) }
+    // Follow the conversation: a new item scrolls into view.
+    LaunchedEffect(state.items.size) { if (state.items.isNotEmpty()) list.animateScrollToItem(state.items.size) else list.scrollToItem(0) }
 
     Column(Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -115,8 +110,8 @@ fun ChatScreen(
                 Modifier.widthIn(max = 640.dp).fillMaxSize(), state = list,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (state.items.isEmpty()) item { Home(state, model, onAsk, onSetup) }
-                itemsIndexed(state.items) { i, item -> Item(item, last = i == state.items.lastIndex, busy = state.busy, loading = state.loading, onAsk = onAsk) }
+                if (state.items.isEmpty()) item { Home(onAsk) }
+                itemsIndexed(state.items) { i, item -> Item(item, last = i == state.items.lastIndex, busy = state.busy, onAsk = onAsk) }
                 item { Box(Modifier.height(1.dp)) }
             }
         }
@@ -140,18 +135,15 @@ fun ChatScreen(
                         }
                     },
                 )
-                val stop = state.busy
+                val canSend = draft.isNotBlank() && !state.busy
                 Box(
-                    Modifier.size(48.dp).clip(CircleShape).background(if (stop || draft.isNotBlank()) scheme.primary else scheme.surfaceContainerHighest)
-                        .clickable(enabled = stop || draft.isNotBlank(), role = Role.Button, onClickLabel = if (stop) "Stop" else "Send") { if (stop) onStop() else send() }
-                        .semantics { contentDescription = if (stop) "Stop" else "Send" },
+                    Modifier.size(48.dp).clip(CircleShape).background(if (canSend) scheme.primary else scheme.surfaceContainerHighest)
+                        .clickable(enabled = canSend, role = Role.Button, onClickLabel = "Send") { send() }
+                        .semantics { contentDescription = "Send" },
                     contentAlignment = Alignment.Center,
-                ) {
-                    if (stop) Box(Modifier.size(14.dp).background(scheme.onPrimary, RoundedCornerShape(3.dp)))
-                    else Icon(PulseIcons.Up, contentDescription = null, tint = if (draft.isNotBlank()) scheme.onPrimary else scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
-                }
+                ) { Icon(PulseIcons.Up, contentDescription = null, tint = if (canSend) scheme.onPrimary else scheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) }
             }
-            Text("AI can be wrong. Not medical advice.", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            Text("Not medical advice.", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -161,7 +153,7 @@ private val looks = listOf(
 )
 
 @Composable
-private fun Home(state: ChatState, model: ModelState, onAsk: (String) -> Unit, onSetup: () -> Unit) {
+private fun Home(onAsk: (String) -> Unit) {
     val c = PulseTheme.colors
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -179,26 +171,11 @@ private fun Home(state: ChatState, model: ModelState, onAsk: (String) -> Unit, o
                 }
             }
         }
-        when (model) {
-            is ModelState.Absent -> PulseCard(onClick = onSetup) {
-                CardHeader("Add explanations, free")
-                Text(
-                    model.problem ?: "Pulse already answers with your exact numbers. Download Google's Gemma AI once (2.6 GB) and it also explains them in words, without internet.",
-                    style = MaterialTheme.typography.bodyMedium, color = if (model.problem != null) scheme.error else scheme.onSurfaceVariant,
-                )
-            }
-            is ModelState.Downloading, ModelState.Checking -> PulseCard(onClick = onSetup) {
-                CardHeader("AI download", downloadText(model))
-                Text("You can already chat. Explanations come when it is ready.", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-            }
-            is ModelState.Unsupported -> Text(model.reason + " Pulse still answers with your exact numbers.", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-            ModelState.Ready -> state.aiProblem?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = scheme.error) }
-        }
     }
 }
 
 @Composable
-private fun Item(item: ChatItem, last: Boolean, busy: Boolean, loading: Boolean, onAsk: (String) -> Unit) {
+private fun Item(item: ChatItem, last: Boolean, busy: Boolean, onAsk: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     when (item) {
         is ChatItem.Question -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
@@ -207,12 +184,9 @@ private fun Item(item: ChatItem, last: Boolean, busy: Boolean, loading: Boolean,
                 modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)).background(scheme.primary).padding(horizontal = 16.dp, vertical = 12.dp),
             )
         }
-        is ChatItem.Old -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(item.answer, style = MaterialTheme.typography.bodyLarge)
-            if (item.ai.isNotEmpty()) Text(item.ai, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-        }
+        is ChatItem.Old -> Text(item.answer, style = MaterialTheme.typography.bodyLarge)
         is ChatItem.Notice -> Notice(item)
-        is ChatItem.Reply -> Reply(item, last, busy, loading, onAsk)
+        is ChatItem.Reply -> Reply(item, last, busy, onAsk)
     }
 }
 
@@ -237,7 +211,7 @@ private fun Notice(n: ChatItem.Notice) {
 }
 
 @Composable
-private fun Reply(r: ChatItem.Reply, last: Boolean, busy: Boolean, loading: Boolean, onAsk: (String) -> Unit) {
+private fun Reply(r: ChatItem.Reply, last: Boolean, busy: Boolean, onAsk: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val clipboard = LocalClipboardManager.current
     val a = r.answer
@@ -250,19 +224,16 @@ private fun Reply(r: ChatItem.Reply, last: Boolean, busy: Boolean, loading: Bool
             a.barNote?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant) }
         }
         Text(a.direct, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
-        if (r.ai.isNotEmpty()) Text(r.ai, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-        if (r.writing) Text(if (loading) "Starting the AI…" else "Writing…", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-        // Without the AI (or if what it wrote was not allowed) one plain tip still helps.
-        else if (r.ai.isEmpty() && a.ideas.isNotEmpty()) Text("One idea: ${a.ideas.first().replaceFirstChar { it.lowercase() }}.", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+        if (a.ideas.isNotEmpty()) Text("One idea: ${a.ideas.first().replaceFirstChar { it.lowercase() }}.", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
 
-        if (!r.writing && a.hasData) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (a.hasData) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("What was used", filled = true) { used = !used }
-            Chip("Copy", filled = true) { clipboard.setText(AnnotatedString(listOf(a.direct, r.ai).filter { it.isNotEmpty() }.joinToString("\n\n"))) }
+            Chip("Copy", filled = true) { clipboard.setText(AnnotatedString(a.direct)) }
         }
         if (used) PulseCard {
             a.used.forEach { (k, v) -> InfoRow(k, v) }
             Text(
-                if (r.ai.isEmpty()) "Pulse worked out these numbers. Nothing left your phone." else "Pulse worked out these numbers. The AI only explained them. Nothing left your phone.",
+                "Pulse worked out these numbers. Nothing left your phone.",
                 style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant,
             )
         }
@@ -316,10 +287,4 @@ fun AskChips(title: String, questions: List<String>, onAsk: (String) -> Unit) {
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
         questions.forEach { q -> Chip(q, filled = false) { onAsk(q) } }
     }
-}
-
-internal fun downloadText(m: ModelState): String = when (m) {
-    is ModelState.Downloading -> "%.1f of %.1f GB".format(m.bytes / 1e9, m.total / 1e9)
-    ModelState.Checking -> "Checking the file"
-    else -> ""
 }

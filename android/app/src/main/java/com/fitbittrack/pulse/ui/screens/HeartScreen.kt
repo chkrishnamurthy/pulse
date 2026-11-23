@@ -29,6 +29,7 @@ import java.util.Locale
 @Composable
 fun HeartScreen(
     heart: HeartUi?,
+    maxHeartRate: Int,
     isSample: Boolean,
     contentPadding: PaddingValues,
     onRangeChange: (Range) -> Unit,
@@ -59,7 +60,7 @@ fun HeartScreen(
                         referenceY = rest, referenceLabel = rest?.let { "Resting ${it.toInt()}" },
                         xLabels = listOf(0f to hourLabel(0), 0.25f to hourLabel(6), 0.5f to hourLabel(12), 0.75f to hourLabel(18)),
                         // Zone bands drawn by Pulse from heart rate (Google lists no zone data type for the Fitbit Air).
-                        bands = heart.restingHeartRate?.let { zoneBands(it, c.heart) } ?: emptyList(),
+                        bands = heart.restingHeartRate?.let { zoneBands(it, maxHeartRate, c.heart) } ?: emptyList(),
                     )
                 }
             }
@@ -116,11 +117,11 @@ private fun headline(h: HeartUi): String = when {
 }
 
 /**
- * Rough heart-rate zones using heart-rate reserve (Karvonen), with an estimated max of 190.
+ * Rough heart-rate zones using heart-rate reserve (Karvonen), with the top heart rate from You.
  * These are for shading only; Pulse does not claim them as Google's official zones.
  */
-private fun zoneBands(resting: Int, color: androidx.compose.ui.graphics.Color): List<Triple<Float, Float, androidx.compose.ui.graphics.Color>> {
-    val reserve = 190 - resting
+private fun zoneBands(resting: Int, maxHr: Int, color: androidx.compose.ui.graphics.Color): List<Triple<Float, Float, androidx.compose.ui.graphics.Color>> {
+    val reserve = maxHr - resting
     fun at(p: Double) = (resting + reserve * p).toFloat()
     return listOf(
         Triple(at(0.4), at(0.6), color.copy(alpha = 0.07f)),

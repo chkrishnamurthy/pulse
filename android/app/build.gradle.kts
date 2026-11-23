@@ -20,8 +20,6 @@ android {
 
     buildTypes {
         release {
-            // The AI library is about 25 MB per processor type; phones use arm64.
-            ndk { abiFilters += "arm64-v8a" }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -77,9 +75,6 @@ dependencies {
 
     // Health Connect: today's numbers on this phone, without the internet trip
     implementation(libs.androidx.health.connect)
-
-    // Ask Pulse: Google's Gemma AI, running on the phone
-    implementation(libs.litertlm.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

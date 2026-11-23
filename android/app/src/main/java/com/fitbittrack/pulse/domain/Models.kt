@@ -94,12 +94,17 @@ sealed interface SyncState {
     data class Failed(val message: String, val needsSignIn: Boolean) : SyncState
 }
 
+/** Level in percent when Google gives one, else only a word such as LOW. */
+data class BandBattery(val level: Int?, val status: String?)
+
 data class SyncStatus(
     val state: SyncState = SyncState.Idle,
     /** When the app last finished a sync with Google. */
     val lastSuccess: Instant? = null,
     /** When the Fitbit Air last synced to the Google Health app (from paired devices). */
     val lastTrackerSync: Instant? = null,
+    /** Band battery from paired devices. Null until Google reports it. */
+    val battery: BandBattery? = null,
     /** Set while older history is downloading. Separate from [state], so it never blocks a refresh. */
     val history: SyncState.Running? = null,
 )

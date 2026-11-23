@@ -52,6 +52,12 @@ fun YouScreen(
     contentPadding: PaddingValues,
     onConnect: () -> Unit,
     onGoals: () -> Unit,
+    onKnowMe: () -> Unit,
+    onReminders: () -> Unit,
+    remindersLabel: String,
+    onBand: () -> Unit,
+    onCalendarGoals: () -> Unit,
+    calendarGoalsLabel: String,
     onCustomize: () -> Unit,
     onSync: () -> Unit,
     onChat: () -> Unit,
@@ -82,9 +88,13 @@ fun YouScreen(
         }
 
         RowGroup(buildList {
+            add { ListRow(PulseIcons.You, c.heartLabel, "Know me", "Age and top heart rate", onClick = onKnowMe) }
+            add { ListRow(PulseIcons.Chat, c.energyLabel, "Reminders", remindersLabel, onClick = onReminders) }
+            add { ListRow(PulseIcons.Heart, c.heartLabel, "My band", sync.batteryPercent?.let { "Battery $it%" } ?: "Battery, sync and alerts", onClick = onBand) }
+            add { ListRow(PulseIcons.Calendar, c.activeLabel, "Calendar goals", calendarGoalsLabel, onClick = onCalendarGoals) }
             add { ListRow(PulseIcons.Target, c.moveLabel, "Goals", "Steps, calories, sleep and more", onClick = onGoals) }
             add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Choose and order your cards", onClick = onCustomize) }
-            add { ListRow(PulseIcons.Chat, c.bodyLabel, "Ask Pulse", "Chat, AI on this phone, privacy", onClick = onChat) }
+            add { ListRow(PulseIcons.Chat, c.bodyLabel, "Ask Pulse", "What chat may read, your chats", onClick = onChat) }
             if (signedIn && !isSample) add {
                 ListRow(PulseIcons.Sync, if (sync.error != null) scheme.error else c.good, "Sync and data", if (sync.needsSignIn) "Sign in again" else if (sync.error != null) "Sync problem" else sync.lastSuccessLabel, onClick = onSync)
             }

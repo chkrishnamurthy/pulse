@@ -1,5 +1,6 @@
 package com.fitbittrack.pulse.data.remote
 
+import com.fitbittrack.pulse.domain.BandBattery
 import com.fitbittrack.pulse.domain.SleepSession
 import com.fitbittrack.pulse.domain.SleepStage
 import com.fitbittrack.pulse.domain.SleepStageType
@@ -197,6 +198,15 @@ object Parsers {
     fun lastTrackerSync(devices: List<JsonObject>): Instant? {
         val trackers = devices.filter { it.str("deviceType") == "TRACKER" }.ifEmpty { devices }
         return trackers.mapNotNull { it.instant("lastSyncTime") }.maxOrNull()
+    }
+
+    /** Battery of the tracker from pairedDevices: percent when given, else the status word. Null when neither is there. */
+    fun battery(devices: List<JsonObject>): BandBattery? {
+        val tracker = devices.filter { it.str("deviceType") == "TRACKER" }.ifEmpty { devices }
+            .maxByOrNull { it.instant("lastSyncTime")?.toEpochMilli() ?: 0L } ?: return null
+        val level = tracker.num("batteryLevel")?.toInt()?.takeIf { it in 0..100 }
+        val status = tracker.str("batteryStatus")?.takeIf { it.isNotBlank() }
+        return if (level == null && status == null) null else BandBattery(level, status)
     }
 
     fun parseDataPoints(json: JsonObject): List<JsonObject> =

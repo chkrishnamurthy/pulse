@@ -58,9 +58,6 @@ import com.fitbittrack.pulse.chat.ChatData
 import com.fitbittrack.pulse.chat.ChatPrefs
 import com.fitbittrack.pulse.chat.ChatStore
 import com.fitbittrack.pulse.chat.ChatViewModel
-import com.fitbittrack.pulse.chat.LiteRtModel
-import com.fitbittrack.pulse.chat.ModelState
-import com.fitbittrack.pulse.chat.ModelStore
 import com.fitbittrack.pulse.domain.HealthRepository
 import com.fitbittrack.pulse.ui.DashboardViewModel
 import com.fitbittrack.pulse.ui.DataLayerBridge
@@ -75,7 +72,6 @@ import com.fitbittrack.pulse.ui.screens.ActivityScreen
 import com.fitbittrack.pulse.ui.screens.CalendarScreen
 import com.fitbittrack.pulse.ui.screens.ChatScreen
 import com.fitbittrack.pulse.ui.screens.ChatSettingsScreen
-import com.fitbittrack.pulse.ui.screens.ChatSetupScreen
 import com.fitbittrack.pulse.ui.screens.ConnectScreen
 import com.fitbittrack.pulse.ui.screens.CustomizeScreen
 import com.fitbittrack.pulse.ui.screens.DayScreen
@@ -90,6 +86,13 @@ import com.fitbittrack.pulse.ui.screens.SyncScreen
 import com.fitbittrack.pulse.ui.screens.TodayScreen
 import com.fitbittrack.pulse.ui.screens.TrendsScreen
 import com.fitbittrack.pulse.ui.screens.YouScreen
+import com.fitbittrack.pulse.ui.screens.KnowMeScreen
+import com.fitbittrack.pulse.ui.screens.RemindersScreen
+import com.fitbittrack.pulse.ui.screens.MyBandScreen
+import com.fitbittrack.pulse.reminders.ReminderPrefs
+import com.fitbittrack.pulse.reminders.Reminders
+import com.fitbittrack.pulse.ui.screens.CalendarGoalsScreen
+import com.fitbittrack.pulse.ui.model.PersonalPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -167,7 +170,6 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
 
     // ---------- Ask Pulse ----------
     val uiPrefs = remember { UiPrefsStore(context.applicationContext) }
-    val modelStore = remember { ModelStore.get(context) }
     val chatScope = rememberCoroutineScope()
     val chat: ChatViewModel = viewModel(factory = viewModelFactory {
         initializer {
@@ -176,17 +178,21 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                 // Sample chats are never kept.
                 prefs = { uiPrefs.chat.first().let { if (dash.isSample.value) it.copy(keep = false) else it } },
                 store = ChatStore(File(context.applicationContext.noBackupFilesDir, CHAT_FILE)),
-                model = LiteRtModel(context.applicationContext.cacheDir),
-                modelFile = { modelStore.file.takeIf { modelStore.state.value == ModelState.Ready } },
             )
         }
     })
-    val modelState by modelStore.state.collectAsStateWithLifecycle()
     val chatPrefs by remember { uiPrefs.chat }.collectAsStateWithLifecycle(ChatPrefs())
     // Sample and real answers are never mixed, and signing out empties the chat.
     var chatSample by remember { mutableStateOf(isSample) }
     LaunchedEffect(isSample) { if (chatSample != isSample) { chatSample = isSample; if (isSample) chat.deleteChats() else chat.newChat() } }
     val ask: (String?) -> Unit = { nav.open(ChatRoute(it)) }
+
+    // What the user told Pulse about themselves. The calendar follows their choice of goals.
+    val personal by remember { uiPrefs.personal }.collectAsStateWithLifecycle(PersonalPrefs())
+    LaunchedEffect(personal.calendarGoals) { dash.setCoreGoals(personal.calendarGoals) }
+    // Reminders: the booked work always matches what the user chose.
+    val reminders by remember { uiPrefs.reminders }.collectAsStateWithLifecycle(ReminderPrefs())
+    LaunchedEffect(reminders) { Reminders.apply(context.applicationContext, reminders) }
 
     val openMetric: (MetricKind) -> Unit = { nav.open(MetricRoute(it.name)) }
     val openDay: (LocalDate) -> Unit = { nav.open(DayRoute(it.toEpochDay())) }
@@ -292,6 +298,10 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                 YouScreen(
                     state = state, sync = sync, isSample = isSample, contentPadding = padding,
                     onConnect = viewModel::connect,
+                    onReminders = { nav.open(RemindersRoute) }, onBand = { nav.open(MyBandRoute) },
+                    remindersLabel = listOfNotNull("Evening".takeIf { reminders.eveningOn }, "Bedtime".takeIf { reminders.bedtimeOn }, "Morning".takeIf { reminders.morningOn }).ifEmpty { listOf("All off") }.joinToString(", "),
+                    onKnowMe = { nav.open(KnowMeRoute) }, onCalendarGoals = { nav.open(CalendarGoalsRoute) },
+                    calendarGoalsLabel = personal.calendarGoals.sortedBy { it.ordinal }.joinToString(", ") { it.label },
                     onGoals = { nav.open(GoalsRoute) }, onCustomize = { nav.open(CustomizeRoute) }, onSync = { nav.open(SyncRoute) },
                     onChat = { nav.open(ChatSettingsRoute) },
                     onThemeChange = { viewModel.setTheme(it) }, onPrefsChange = { viewModel.setPrefs(it) },
@@ -319,7 +329,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             }
             page<HeartRoute> {
                 val heart by dash.heartUi.collectAsStateWithLifecycle()
-                HeartScreen(heart, isSample, padding, dash::setHeartRange, onOpenLive = { nav.open(LiveHeartRoute) }, onBack = { nav.back() }, onMetric = openMetric, onAsk = ask)
+                HeartScreen(heart, personal.maxHeartRate, isSample, padding, dash::setHeartRange, onOpenLive = { nav.open(LiveHeartRoute) }, onBack = { nav.back() }, onMetric = openMetric, onAsk = ask)
             }
             page<LiveHeartRoute> {
                 DisposableEffect(Unit) { barless++; onDispose { barless-- } }
@@ -341,16 +351,25 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             page<GoalsRoute> {
                 GoalsScreen(goals = goals, units = state.prefs.units, contentPadding = padding, onBack = { nav.back() }, onGoalsChange = { dash.setGoals(it) })
             }
+            page<RemindersRoute> {
+                RemindersScreen(reminders, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setReminders(it) } }
+            }
+            page<MyBandRoute> {
+                MyBandScreen(sync, isSample, reminders, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setReminders(it) } }
+            }
+            page<KnowMeRoute> {
+                KnowMeScreen(personal, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setPersonal(it) } }
+            }
+            page<CalendarGoalsRoute> {
+                CalendarGoalsScreen(personal.calendarGoals, goals, state.prefs.units, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setPersonal(personal.copy(calendarGoals = it)) } }
+            }
             page<CustomizeRoute> {
                 CustomizeScreen(prefs = state.prefs, contentPadding = padding, onBack = { nav.back() }, onPrefsChange = { viewModel.setPrefs(it) })
             }
             page<ChatRoute> { entry ->
                 DisposableEffect(Unit) { barless++; onDispose { barless-- } }
                 val chatState by chat.state.collectAsStateWithLifecycle()
-                LifecycleStartEffect(chat) {
-                    chat.open()
-                    onStopOrDispose { chat.leave() }
-                }
+                LaunchedEffect(chat) { chat.open() }
                 // A question passed in from another page is asked once, also after rotation.
                 var asked by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
@@ -358,28 +377,15 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                     if (!asked && q != null) { asked = true; chat.ask(q) }
                 }
                 ChatScreen(
-                    state = chatState, model = modelState, isSample = isSample, contentPadding = padding,
-                    onBack = { nav.back() }, onAsk = chat::ask, onStop = chat::stop, onNewChat = chat::newChat,
-                    onSetup = { nav.open(ChatSetupRoute) },
-                )
-            }
-            page<ChatSetupRoute> {
-                ChatSetupScreen(
-                    model = modelState, prefs = chatPrefs, contentPadding = padding,
-                    onBack = { nav.back() },
-                    onWifiOnly = { on -> chatScope.launch { uiPrefs.setChat(chatPrefs.copy(wifiOnly = on)) } },
-                    onDownload = { modelStore.start(chatPrefs.wifiOnly) },
-                    onCancel = { modelStore.delete() },
-                    onDone = { nav.back() },
+                    state = chatState, isSample = isSample, contentPadding = padding,
+                    onBack = { nav.back() }, onAsk = chat::ask, onNewChat = chat::newChat,
                 )
             }
             page<ChatSettingsRoute> {
                 ChatSettingsScreen(
-                    model = modelState, prefs = chatPrefs, contentPadding = padding,
+                    prefs = chatPrefs, contentPadding = padding,
                     onBack = { nav.back() },
                     onPrefs = { p -> chatScope.launch { uiPrefs.setChat(p) } },
-                    onSetup = { nav.open(ChatSetupRoute) },
-                    onDeleteModel = { chat.releaseModel { modelStore.delete() } },
                     onDeleteChats = chat::deleteChats,
                 )
             }

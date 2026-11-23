@@ -4,49 +4,35 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
 import java.time.LocalDate
 
 sealed interface ChatItem {
     data class Question(val text: String) : ChatItem
-    data class Reply(val answer: Answer, val ai: String = "", val writing: Boolean = false) : ChatItem
+    data class Reply(val answer: Answer) : ChatItem
     data class Notice(val kind: Kind, val title: String, val text: String) : ChatItem {
         enum class Kind { Emergency, Plain }
     }
     /** From an earlier chat. */
-    data class Old(val answer: String, val ai: String) : ChatItem
+    data class Old(val answer: String) : ChatItem
 }
 
-data class ChatPrefs(val keep: Boolean = false, val areas: Set<Area> = Area.entries.toSet(), val wifiOnly: Boolean = true)
+data class ChatPrefs(val keep: Boolean = false, val areas: Set<Area> = Area.entries.toSet())
 
 data class ChatState(
     val items: List<ChatItem> = emptyList(),
     val busy: Boolean = false,
-    /** The AI is being loaded into memory. */
-    val loading: Boolean = false,
-    /** Set when the AI could not be loaded. Pulse's own answers still work. */
-    val aiProblem: String? = null,
 )
 
-/**
- * The chat. Pulse finds the numbers and writes the direct answer at once; then, if the AI is on this phone,
- * it adds an explanation in words. If the AI is missing, fails or writes something not allowed, the direct
- * answer still stands.
- */
+/** The chat: a question is sorted by plain rules and answered from the phone's own database. Nothing leaves the phone. */
 class ChatViewModel(
     private val data: suspend (LocalDate) -> ChatData,
     private val prefs: suspend () -> ChatPrefs,
     private val store: ChatStore,
-    private val model: LocalModel,
-    private val modelFile: () -> File?,
     private val today: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
@@ -54,56 +40,25 @@ class ChatViewModel(
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
     private var job: Job? = null
-    private var unload: Job? = null
     private var started = false
     private val turns = mutableListOf<SavedTurn>()
 
     /** The chat came on screen. */
     fun open() {
-        unload?.cancel()
         if (!started) {
             started = true
             viewModelScope.launch {
                 if (prefs().keep && _state.value.items.isEmpty()) {
                     turns += store.load()
-                    _state.update { s -> if (s.items.isEmpty()) s.copy(items = turns.flatMap { listOf(ChatItem.Question(it.question), ChatItem.Old(it.answer, it.ai)) }) else s }
+                    _state.update { s -> if (s.items.isEmpty()) s.copy(items = turns.flatMap { listOf(ChatItem.Question(it.question), ChatItem.Old(it.answer)) }) else s }
                 }
             }
-        }
-        viewModelScope.launch { ready() }
-    }
-
-    /** The chat left the screen. The AI uses about 800 MB, so it isn't kept for long. */
-    fun leave() {
-        unload?.cancel()
-        unload = viewModelScope.launch {
-            delay(KEEP_LOADED_MS)
-            model.close()
-        }
-    }
-
-    /** True if the AI can be used now. */
-    private suspend fun ready(): Boolean {
-        val file = modelFile() ?: return false
-        _state.update { it.copy(loading = true) }
-        return try {
-            model.load(file)
-            _state.update { it.copy(aiProblem = null) }
-            true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Throwable) { // also native "library not found" and out-of-memory errors
-            _state.update { it.copy(aiProblem = "The AI could not start. Pulse's own answers still work.") }
-            false
-        } finally {
-            _state.update { it.copy(loading = false) }
         }
     }
 
     fun ask(text: String) {
         val q = text.trim().take(MAX_QUESTION)
         if (q.isEmpty() || _state.value.busy) return
-        unload?.cancel()
         job = viewModelScope.launch {
             _state.update { it.copy(busy = true, items = it.items + ChatItem.Question(q)) }
             try {
@@ -113,7 +68,7 @@ class ChatViewModel(
             } catch (_: Exception) {
                 add(ChatItem.Notice(ChatItem.Notice.Kind.Plain, "That didn't work", "Pulse could not read your data just now. Please try again."))
             } finally {
-                _state.update { s -> s.copy(busy = false, items = s.items.map { if (it is ChatItem.Reply && it.writing) it.copy(writing = false) else it }) }
+                _state.update { it.copy(busy = false) }
             }
         }
     }
@@ -157,36 +112,9 @@ class ChatViewModel(
         },
     )
 
-    private suspend fun answer(q: String, a: Answer, p: ChatPrefs) {
-        add(ChatItem.Reply(a, writing = a.hasData && modelFile() != null))
-        val index = _state.value.items.lastIndex
-        var ai = ""
-        try {
-            if (a.hasData && ready()) {
-                val guard = AnswerGuard.Stream()
-                try {
-                    model.answer(Prompt.SYSTEM, Prompt.user(q, a)).takeWhile { piece ->
-                        guard.add(piece)
-                        show(index, guard.text)
-                        !guard.full
-                    }.collect { }
-                    guard.finish()
-                } catch (e: CancellationException) {
-                    ai = guard.text
-                    throw e
-                } catch (_: Exception) {
-                    // The direct answer stands on its own.
-                }
-                ai = guard.text
-                show(index, ai)
-            }
-        } finally {
-            remember(SavedTurn(q, a.direct, ai), p)
-        }
-    }
-
-    private fun show(index: Int, text: String) = _state.update { s ->
-        s.copy(items = s.items.mapIndexed { i, it -> if (i == index && it is ChatItem.Reply) it.copy(ai = text) else it })
+    private fun answer(q: String, a: Answer, p: ChatPrefs) {
+        add(ChatItem.Reply(a))
+        remember(SavedTurn(q, a.direct), p)
     }
 
     private suspend fun notice(q: String, kind: ChatItem.Notice.Kind, title: String, text: String) {
@@ -204,8 +132,6 @@ class ChatViewModel(
         viewModelScope.launch { runCatching { store.save(copy) } }
     }
 
-    fun stop() { job?.cancel() }
-
     /** Starts over on screen. Kept chats stay until they are deleted. */
     fun newChat() {
         job?.cancel()
@@ -219,15 +145,7 @@ class ChatViewModel(
         viewModelScope.launch { store.clear() }
     }
 
-    /** The AI file is about to be deleted. */
-    fun releaseModel(then: () -> Unit) = viewModelScope.launch {
-        job?.cancel()
-        model.close()
-        then()
-    }
-
     private companion object {
-        const val KEEP_LOADED_MS = 60_000L
         const val MAX_QUESTION = 300
     }
 }

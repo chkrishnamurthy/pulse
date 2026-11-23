@@ -231,6 +231,8 @@ object Mappers {
         needsSignIn = (s.state as? SyncState.Failed)?.needsSignIn == true,
         lastSuccessLabel = if (s.lastSuccess == null) "Not synced yet" else "Synced ${Fmt.ago(s.lastSuccess, now)}",
         lastTrackerLabel = if (s.lastTrackerSync == null) "unknown" else Fmt.ago(s.lastTrackerSync, now),
+        batteryPercent = s.battery?.level,
+        batteryWord = s.battery?.status?.lowercase()?.replace('_', ' '),
         firstSyncPending = !isSample && s.lastSuccess == null,
         progress = (s.state as? SyncState.Running)?.progress,
         historyLabel = s.history?.let { r -> r.progress?.let { "${r.label} · ${(it * 100).roundToInt()}%" } ?: r.label },

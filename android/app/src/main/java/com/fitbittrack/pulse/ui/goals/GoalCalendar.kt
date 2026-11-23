@@ -28,9 +28,9 @@ data class GoalProgress(val metric: GoalMetric, val value: Double?, val target: 
 }
 
 /** Every goal for one day, judged by the targets that applied on that day. */
-data class DayGoals(val date: LocalDate, val items: List<GoalProgress>) {
+data class DayGoals(val date: LocalDate, val items: List<GoalProgress>, val coreGoals: Set<GoalMetric> = GoalCalendar.CORE) {
     operator fun get(metric: GoalMetric): GoalProgress = items.first { it.metric == metric }
-    val core: List<GoalProgress> get() = items.filter { it.metric in GoalCalendar.CORE }
+    val core: List<GoalProgress> get() = items.filter { it.metric in coreGoals }
     /** The rings on Today. */
     val todayGoals: List<GoalProgress> get() = items.filter { it.metric in GoalCalendar.TODAY }
     val coreMet: Int get() = core.count { it.met }
@@ -56,6 +56,8 @@ data class MonthUi(
     val bestStreak: Int,
     /** Today itself, whichever month is open, and the streak of complete days. */
     val todayGoals: DayGoals?,
+    /** The goals the calendar counts, chosen by the user. */
+    val coreGoals: Set<GoalMetric> = GoalCalendar.CORE,
     val allGoalsStreak: Int,
     /** Average of the metric over days with data (null for "All goals"). */
     val average: Double?,
@@ -77,7 +79,7 @@ object GoalCalendar {
         return (sorted.lastOrNull { it.from <= date } ?: sorted.firstOrNull())?.goals ?: Goals()
     }
 
-    fun day(date: LocalDate, summary: DaySummary?, sleepMinutes: Int?, goals: Goals): DayGoals = DayGoals(
+    fun day(date: LocalDate, summary: DaySummary?, sleepMinutes: Int?, goals: Goals, core: Set<GoalMetric> = CORE): DayGoals = DayGoals(
         date,
         listOf(
             GoalProgress(GoalMetric.Steps, summary?.steps?.toDouble(), goals.dailySteps.toDouble()),
@@ -87,6 +89,7 @@ object GoalCalendar {
             GoalProgress(GoalMetric.Zone, summary?.activeZoneMinutes?.toDouble(), (goals.weeklyActiveZoneMinutes / 7.0).roundToInt().coerceAtLeast(1).toDouble()),
             GoalProgress(GoalMetric.Floors, summary?.floors?.toDouble(), goals.dailyFloors.toDouble()),
         ),
+        core,
     )
 
     /** One entry per date from [from] to [to], oldest first, also for days without data. */
@@ -94,13 +97,14 @@ object GoalCalendar {
         from: LocalDate, to: LocalDate,
         summaries: List<DaySummary>, sleeps: List<SleepSession>, history: List<DatedGoals>,
         zone: ZoneId = ZoneId.systemDefault(),
+        core: Set<GoalMetric> = CORE,
     ): List<DayGoals> {
         val byDate = summaries.associateBy { it.date }
         val sleepByWake = sleeps.filter { it.isMainSleep }
             .groupBy { it.wakeDate ?: it.end.atZone(zone).toLocalDate() }
             .mapValues { (_, list) -> list.maxOf { it.minutesAsleep }.toInt() }
         return generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }
-            .map { d -> day(d, byDate[d], sleepByWake[d], goalsOn(history, d)) }
+            .map { d -> day(d, byDate[d], sleepByWake[d], goalsOn(history, d), core) }
             .toList()
     }
 
@@ -121,9 +125,10 @@ object GoalCalendar {
     /** [allDays] should reach back at least a year for the streaks; it may hold more than this month. */
     fun month(month: YearMonth, metric: GoalMetric?, allDays: List<DayGoals>, today: LocalDate, firstDay: DayOfWeek): MonthUi {
         val byDate = allDays.associateBy { it.date }
+        val core = allDays.firstOrNull()?.coreGoals ?: CORE
         val days = (1..month.lengthOfMonth()).map { n ->
             val d = month.atDay(n)
-            byDate[d] ?: day(d, null, null, Goals())
+            byDate[d] ?: day(d, null, null, Goals(), core)
         }
         val withData = days.filter { it.date <= today && (if (metric == null) it.core.any { g -> g.value != null } else it[metric].value != null) }
         return MonthUi(
@@ -138,6 +143,7 @@ object GoalCalendar {
             currentStreak = currentStreak(allDays, metric, today),
             bestStreak = bestStreak(allDays.filter { it.date <= today }, metric),
             todayGoals = byDate[today],
+            coreGoals = core,
             allGoalsStreak = currentStreak(allDays, null, today),
             average = metric?.let { m -> withData.mapNotNull { it[m].value }.takeIf { it.isNotEmpty() }?.average() },
             target = metric?.let { m -> (days.lastOrNull { it.date <= today } ?: days.last())[m].target },

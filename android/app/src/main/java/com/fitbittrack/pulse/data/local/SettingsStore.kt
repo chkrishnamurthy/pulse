@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fitbittrack.pulse.domain.BandBattery
 import com.fitbittrack.pulse.domain.DatedGoals
 import com.fitbittrack.pulse.domain.Goals
 import com.fitbittrack.pulse.domain.SyncState
@@ -44,6 +45,8 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         val needsSignIn = booleanPreferencesKey("sync_needs_sign_in")
         val lastSuccess = longPreferencesKey("sync_last_success_ms")
         val lastTracker = longPreferencesKey("sync_last_tracker_ms")
+        val batteryLevel = intPreferencesKey("band_battery_level")
+        val batteryStatus = stringPreferencesKey("band_battery_status")
         val backfillDone = booleanPreferencesKey("backfill_done")
         val historyStart = stringPreferencesKey("history_start")
         val historyLabel = stringPreferencesKey("history_label") // present only while history downloads
@@ -105,6 +108,7 @@ class SettingsStore(private val store: DataStore<Preferences>) {
             state = state,
             lastSuccess = p[K.lastSuccess]?.let(Instant::ofEpochMilli),
             lastTrackerSync = p[K.lastTracker]?.let(Instant::ofEpochMilli),
+            battery = if (p[K.batteryLevel] == null && p[K.batteryStatus] == null) null else BandBattery(p[K.batteryLevel], p[K.batteryStatus]),
             history = p[K.historyLabel]?.let { SyncState.Running(p[K.historyProgress]?.takeIf { v -> v >= 0f }, it) },
         )
     }
@@ -144,6 +148,11 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         it.remove(K.historyLabel); it.remove(K.historyProgress)
     }
 
+    suspend fun setBattery(b: BandBattery?) = store.edit {
+        if (b?.level != null) it[K.batteryLevel] = b.level else it.remove(K.batteryLevel)
+        if (b?.status != null) it[K.batteryStatus] = b.status else it.remove(K.batteryStatus)
+    }
+
     suspend fun setLastTrackerSync(at: Instant) = store.edit { it[K.lastTracker] = at.toEpochMilli() }
 
     suspend fun isBackfillDone(): Boolean = store.data.first()[K.backfillDone] ?: false
@@ -154,7 +163,7 @@ class SettingsStore(private val store: DataStore<Preferences>) {
 
     /** Forget all sync bookkeeping (used by "delete local data"). Goals are kept. */
     suspend fun resetSync() = store.edit {
-        listOf(K.state, K.progress, K.label, K.error, K.needsSignIn, K.lastSuccess, K.lastTracker, K.backfillDone, K.historyStart,
+        listOf(K.state, K.progress, K.label, K.error, K.needsSignIn, K.lastSuccess, K.lastTracker, K.batteryLevel, K.batteryStatus, K.backfillDone, K.historyStart,
             K.historyLabel, K.historyProgress, K.historyTried)
             .forEach { k -> it.remove(k) }
     }

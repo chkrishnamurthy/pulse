@@ -149,9 +149,17 @@ class DashboardViewModel(
 
     /** Every day from [from] to today with its goals. */
     private fun goalDays(repo: HealthRepository, from: LocalDate, to: LocalDate): Flow<List<DayGoals>> =
-        combine(repo.daySummaries(from, to), repo.sleep(from, to), repo.goalHistory) { sums, nights, history ->
-            GoalCalendar.days(from, to, sums, nights, history)
+        combine(repo.daySummaries(from, to), repo.sleep(from, to), repo.goalHistory, coreGoals) { sums, nights, history, core ->
+            GoalCalendar.days(from, to, sums, nights, history, core = core)
         }
+
+    /** The goals a day needs to be complete. The user picks them in You. */
+    private val coreGoals = MutableStateFlow(GoalCalendar.CORE)
+    fun setCoreGoals(core: Set<GoalMetric>) {
+        if (core.isEmpty()) return
+        coreGoals.value = core
+        if (calendarMetric.value?.let { it !in core } == true) calendarMetric.value = null
+    }
 
     /** The last seven days, for Today. */
     val weekGoals: StateFlow<List<DayGoals>> = ctx.flatMapLatest { (repo, d) -> goalDays(repo, d.minusDays(6), d) }.state(emptyList())

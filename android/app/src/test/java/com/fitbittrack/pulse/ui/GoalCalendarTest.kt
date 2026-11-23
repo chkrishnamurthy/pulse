@@ -185,4 +185,28 @@ class GoalCalendarTest {
         assertEquals("96%", MetricKind.Spo2.text(96.0, Units.Metric))
         assertEquals("5.0 mi", MetricKind.Distance.text(8_046.72, Units.Imperial))
     }
+
+    @Test fun `chosen goals decide when a day is complete`() {
+        val sum = DaySummary(today, steps = 12_000, caloriesKcal = 1_000.0, distanceMeters = 9_000.0)
+        val steps = GoalCalendar.day(today, sum, 400, goals, setOf(GoalMetric.Steps))
+        assertTrue(steps.met(null))
+        val both = GoalCalendar.day(today, sum, 400, goals, setOf(GoalMetric.Steps, GoalMetric.Calories))
+        assertFalse(both.met(null))
+        assertEquals(1, both.coreMet)
+        val sleep = GoalCalendar.day(today, sum, 400, goals, setOf(GoalMetric.Sleep))
+        assertFalse(sleep.met(null))
+    }
+
+    @Test fun `month and days carry the chosen goals`() {
+        val core = setOf(GoalMetric.Distance, GoalMetric.Sleep)
+        val days = GoalCalendar.days(today.minusDays(2), today, emptyList(), emptyList(), always(), utc, core)
+        assertTrue(days.all { it.coreGoals == core })
+        assertEquals(core, GoalCalendar.month(YearMonth.from(today), null, days, today, DayOfWeek.MONDAY).coreGoals)
+    }
+
+    @Test fun `top heart rate follows age until chosen`() {
+        assertEquals(190, com.fitbittrack.pulse.ui.model.PersonalPrefs().maxHeartRate)
+        assertEquals(186, com.fitbittrack.pulse.ui.model.PersonalPrefs(age = 34).maxHeartRate)
+        assertEquals(175, com.fitbittrack.pulse.ui.model.PersonalPrefs(age = 34, topHeartRate = 175).maxHeartRate)
+    }
 }

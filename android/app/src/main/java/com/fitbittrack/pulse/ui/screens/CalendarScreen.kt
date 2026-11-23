@@ -59,7 +59,6 @@ import com.fitbittrack.pulse.ui.components.label
 import com.fitbittrack.pulse.ui.components.tone
 import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.goals.DayGoals
-import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.goals.MonthUi
 import com.fitbittrack.pulse.ui.model.Units
@@ -113,7 +112,7 @@ fun CalendarScreen(
         // --- Which goal ---
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GoalChip("All goals", null, ui.metric == null) { onMetric(null) }
-            GoalMetric.entries.filter { it in GoalCalendar.CORE }.forEach { m -> GoalChip(m.label, m, ui.metric == m) { onMetric(m) } }
+            GoalMetric.entries.filter { it in ui.coreGoals }.forEach { m -> GoalChip(m.label, m, ui.metric == m) { onMetric(m) } }
         }
 
         // --- Month ---
@@ -161,7 +160,7 @@ fun CalendarScreen(
                     }
                 }
             }
-            Legend(ui.metric)
+            Legend(ui.metric, ui.coreGoals)
         }
 
         // --- Summary ---
@@ -303,11 +302,11 @@ private fun DayCell(day: DayGoals, metric: GoalMetric?, today: LocalDate, units:
 }
 
 @Composable
-private fun Legend(metric: GoalMetric?) {
+private fun Legend(metric: GoalMetric?, core: Set<GoalMetric>) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-        val items = if (metric == null) GoalMetric.entries.filter { it in GoalCalendar.CORE }.map { it.label to c.fill(it.tone) }
+        val items = if (metric == null) GoalMetric.entries.filter { it in core }.map { it.label to c.fill(it.tone) }
         else listOf("Ring: how far" to c.fill(metric.tone), "Filled: reached" to c.fill(metric.tone).copy(alpha = 0.4f))
         items.forEach { (text, color) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {

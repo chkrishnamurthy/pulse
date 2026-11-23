@@ -319,7 +319,9 @@ class SyncEngine(
 
     private suspend fun updateTrackerSync() {
         try {
-            Parsers.lastTrackerSync(client.pairedDevices())?.let { checkNotAborted(); store.setLastTrackerSync(it) }
+            val devices = client.pairedDevices()
+            Parsers.lastTrackerSync(devices)?.let { checkNotAborted(); store.setLastTrackerSync(it) }
+            store.setBattery(Parsers.battery(devices))
         } catch (e: HealthApiException) {
             // Optional: the paired-devices call may need a permission the user did not grant.
             if (e.isUnauthorized) throw e

@@ -38,15 +38,15 @@ data class Period(val kind: Kind, val from: LocalDate, val to: LocalDate) {
 }
 
 sealed interface Route {
-    /** May be an emergency: a fixed message, the AI is never asked. [crisis] = the person may be in danger from themselves. */
+    /** May be an emergency: a fixed message. [crisis] = the person may be in danger from themselves. */
     data class Emergency(val crisis: Boolean) : Route
-    /** Illness, medicine, symptoms: not for an app or an AI. */
+    /** Illness, medicine, symptoms: not for an app. */
     data object Medical : Route
     data object OffTopic : Route
     data class Data(val topic: Topic, val period: Period, val want: Want) : Route
 }
 
-/** Turns a typed question into what to look up. Plain rules, no AI: the same question always gives the same result. */
+/** Turns a typed question into what to look up. Plain rules: the same question always gives the same result. */
 object QuestionRouter {
 
     private fun rx(p: String) = Regex(p, RegexOption.IGNORE_CASE)

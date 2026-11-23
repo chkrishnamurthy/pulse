@@ -23,6 +23,19 @@ enum class TodayCard(val label: String) {
     Floors("Floors"),
 }
 
+/** What the user told Pulse about themselves. */
+data class PersonalPrefs(
+    /** The goals a calendar day needs to be green. At least one. */
+    val calendarGoals: Set<com.fitbittrack.pulse.ui.goals.GoalMetric> = com.fitbittrack.pulse.ui.goals.GoalCalendar.CORE,
+    val age: Int? = null,
+    /** Chosen by the user. Null = worked out from age. */
+    val topHeartRate: Int? = null,
+) {
+    /** 220 minus age, else 190 (the number Pulse used before). */
+    val autoTopHeartRate: Int get() = age?.let { (220 - it).coerceIn(120, 220) } ?: 190
+    val maxHeartRate: Int get() = topHeartRate ?: autoTopHeartRate
+}
+
 data class UiPrefs(
     val units: Units = Units.Metric,
     val todayCards: List<Pair<TodayCard, Boolean>> = TodayCard.entries.map { it to (it != TodayCard.Floors) },
@@ -149,6 +162,9 @@ data class SyncUi(
     val needsSignIn: Boolean,
     val lastSuccessLabel: String,
     val lastTrackerLabel: String,
+    /** Band battery in percent, null when Google has not said. */
+    val batteryPercent: Int? = null,
+    val batteryWord: String? = null,
     /** Real account connected but nothing downloaded yet: show the first-sync card. */
     val firstSyncPending: Boolean,
     /** Set while older history downloads in the background. Doesn't block refreshing. */

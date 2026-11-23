@@ -3,15 +3,23 @@ package com.fitbittrack.pulse.ui.prefs
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fitbittrack.pulse.chat.Area
 import com.fitbittrack.pulse.chat.ChatPrefs
+import com.fitbittrack.pulse.ui.goals.GoalCalendar
+import com.fitbittrack.pulse.ui.goals.GoalMetric
+import com.fitbittrack.pulse.ui.model.PersonalPrefs
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.theme.ThemeMode
+import androidx.datastore.preferences.core.longPreferencesKey
+import com.fitbittrack.pulse.reminders.ReminderPrefs
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import java.time.LocalTime
 import kotlinx.coroutines.flow.map
 
 /** Look-and-feel choices: theme, units, Today cards. Separate from the data layer's store. */
@@ -27,7 +35,9 @@ class UiPrefsStore(private val context: Context) {
     private val healthConnectKey = booleanPreferencesKey("health_connect")
     private val chatKeepKey = booleanPreferencesKey("chat_keep")
     private val chatOffKey = stringPreferencesKey("chat_areas_off") // "Sleep,Body"
-    private val chatWifiKey = booleanPreferencesKey("chat_wifi_only")
+    private val calGoalsKey = stringPreferencesKey("calendar_goals") // "Steps,Calories"
+    private val ageKey = intPreferencesKey("age")
+    private val topHrKey = intPreferencesKey("top_hr")
 
     /** Whether the user connected a Google account and has not signed out. No tokens are stored. */
     data class Session(val connected: Boolean, val accountName: String?)
@@ -55,15 +65,59 @@ class UiPrefsStore(private val context: Context) {
         ChatPrefs(
             keep = p[chatKeepKey] ?: false,
             areas = Area.entries.filter { it.name !in off }.toSet(),
-            wifiOnly = p[chatWifiKey] ?: true,
         )
     }
 
     suspend fun setChat(c: ChatPrefs) = context.uiPrefsStore.edit {
         it[chatKeepKey] = c.keep
         it[chatOffKey] = Area.entries.filter { a -> a !in c.areas }.joinToString(",") { a -> a.name }
-        it[chatWifiKey] = c.wifiOnly
     }
+
+    val personal: Flow<PersonalPrefs> = context.uiPrefsStore.data.map { p ->
+        val goals = p[calGoalsKey]?.split(",")?.mapNotNull { runCatching { GoalMetric.valueOf(it) }.getOrNull() }?.toSet()
+        PersonalPrefs(goals?.takeIf { it.isNotEmpty() } ?: GoalCalendar.CORE, p[ageKey], p[topHrKey])
+    }
+
+    suspend fun setPersonal(x: PersonalPrefs) = context.uiPrefsStore.edit {
+        it[calGoalsKey] = x.calendarGoals.joinToString(",") { g -> g.name }
+        x.age?.let { a -> it[ageKey] = a } ?: it.remove(ageKey)
+        x.topHeartRate?.let { h -> it[topHrKey] = h } ?: it.remove(topHrKey)
+    }
+
+    private fun time(p: androidx.datastore.preferences.core.Preferences, k: androidx.datastore.preferences.core.Preferences.Key<Int>, d: LocalTime) =
+        p[k]?.let { runCatching { LocalTime.of(it / 60, it % 60) }.getOrNull() } ?: d
+    private fun mins(t: LocalTime) = t.hour * 60 + t.minute
+    private val rEveningOn = booleanPreferencesKey("rem_evening_on")
+    private val rEvening = intPreferencesKey("rem_evening")
+    private val rBedOn = booleanPreferencesKey("rem_bed_on")
+    private val rBed = intPreferencesKey("rem_bed")
+    private val rMorningOn = booleanPreferencesKey("rem_morning_on")
+    private val rMorning = intPreferencesKey("rem_morning")
+    private val rQuietOn = booleanPreferencesKey("rem_quiet_on")
+    private val rQuietFrom = intPreferencesKey("rem_quiet_from")
+    private val rQuietTo = intPreferencesKey("rem_quiet_to")
+    private val rLowOn = booleanPreferencesKey("rem_low_on")
+    private val rLowAt = intPreferencesKey("rem_low_at")
+    private val rStaleOn = booleanPreferencesKey("rem_stale_on")
+
+    val reminders: Flow<ReminderPrefs> = context.uiPrefsStore.data.map { p ->
+        val d = ReminderPrefs()
+        ReminderPrefs(
+            p[rEveningOn] ?: d.eveningOn, time(p, rEvening, d.evening), p[rBedOn] ?: d.bedtimeOn, time(p, rBed, d.bedtime),
+            p[rMorningOn] ?: d.morningOn, time(p, rMorning, d.morning), p[rQuietOn] ?: d.quietOn, time(p, rQuietFrom, d.quietFrom), time(p, rQuietTo, d.quietTo),
+            p[rLowOn] ?: d.lowBatteryOn, (p[rLowAt] ?: d.lowBatteryAt).coerceIn(5, 50), p[rStaleOn] ?: d.staleOn,
+        )
+    }
+
+    suspend fun setReminders(x: ReminderPrefs) = context.uiPrefsStore.edit {
+        it[rEveningOn] = x.eveningOn; it[rEvening] = mins(x.evening); it[rBedOn] = x.bedtimeOn; it[rBed] = mins(x.bedtime)
+        it[rMorningOn] = x.morningOn; it[rMorning] = mins(x.morning); it[rQuietOn] = x.quietOn; it[rQuietFrom] = mins(x.quietFrom); it[rQuietTo] = mins(x.quietTo)
+        it[rLowOn] = x.lowBatteryOn; it[rLowAt] = x.lowBatteryAt; it[rStaleOn] = x.staleOn
+    }
+
+    /** The day (epoch day) a band alert was last sent, so each comes at most once a day. */
+    suspend fun alertDay(kind: String): Long? = context.uiPrefsStore.data.map { it[longPreferencesKey("alert_$kind")] }.first()
+    suspend fun setAlertDay(kind: String, day: Long) = context.uiPrefsStore.edit { it[longPreferencesKey("alert_$kind")] = day }
 
     val theme: Flow<ThemeMode> = context.uiPrefsStore.data.map { p ->
         p[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System

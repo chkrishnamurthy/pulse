@@ -36,7 +36,7 @@ data class ChatData(
 
 data class Bar(val label: String, val value: Double?, val reached: Boolean)
 
-/** One answer. Every number in it was worked out here, never by the AI. */
+/** One answer. Every number in it was worked out here, by plain, tested code. */
 data class Answer(
     val topic: Topic,
     val tone: Tone,
@@ -50,7 +50,7 @@ data class Answer(
     val direct: String,
     /** "What was used". */
     val used: List<Pair<String, String>>,
-    /** Tips the AI may choose from. */
+    /** Everyday tips that fit the result; the first one is shown. */
     val ideas: List<String>,
     val followUps: List<String>,
     val hasData: Boolean,
@@ -351,7 +351,7 @@ object AnswerBuilder {
     }
 }
 
-/** Safe, everyday tips. The AI picks one and rewords it; without the AI the first one is shown. */
+/** Safe, everyday tips. The first one is shown. */
 object Ideas {
     private val sleep = listOf("Start winding down earlier in the evening", "Keep the same wake-up time every day, also at weekends", "Put the phone away and dim the lights before bed", "Get daylight soon after waking")
     private val move = listOf("Take a short walk after a meal", "Split what is left into two or three small walks", "Use the stairs and stand up once an hour", "Walk while you take phone calls")
