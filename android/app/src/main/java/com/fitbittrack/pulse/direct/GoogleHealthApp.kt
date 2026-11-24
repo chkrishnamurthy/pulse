@@ -3,7 +3,7 @@ package com.fitbittrack.pulse.direct
 import android.content.ActivityNotFoundException
 import android.content.Context
 
-/** The Google Health app (the former Fitbit app). It is the only app that can sync the band, and it does so each time it opens. */
+/** The Google Health app (the former Fitbit app). Only it can sync the band: pull down on its Today page. Opening it alone is not always enough. */
 object GoogleHealthApp {
     private const val PACKAGE = "com.fitbit.FitbitMobile"
 

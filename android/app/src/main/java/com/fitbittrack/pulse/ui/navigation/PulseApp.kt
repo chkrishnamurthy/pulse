@@ -306,7 +306,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                             bpm = (liveHeart as? LiveState.Live)?.bpmAt(now),
                         ),
                         onGetNewest = {
-                            if (GoogleHealthApp.open(context)) Toast.makeText(context, "Google Health is syncing your band. Come back in a few seconds.", Toast.LENGTH_LONG).show()
+                            if (GoogleHealthApp.open(context)) Toast.makeText(context, "In Google Health, pull down on Today to sync your band. Then come back.", Toast.LENGTH_LONG).show()
                         }.takeIf { !isSample && canOpenHealth },
                         onRefresh = { dash.refresh(); air.refresh() },
                         onConnect = viewModel::connect,

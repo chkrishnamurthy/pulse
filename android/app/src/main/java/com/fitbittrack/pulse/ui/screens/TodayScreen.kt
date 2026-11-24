@@ -104,7 +104,7 @@ fun TodayScreen(
     air: AirState,
     live: HomeLive,
     onRefresh: () -> Unit,
-    /** Opens Google Health, which syncs the band. Null when there is nothing to open. */
+    /** Opens Google Health, where the user can sync the band. Null when there is nothing to open. */
     onGetNewest: (() -> Unit)?,
     onConnect: () -> Unit,
     onOpenSync: () -> Unit,
