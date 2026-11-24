@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fitbittrack.pulse.chat.Area
 import com.fitbittrack.pulse.chat.ChatPrefs
+import com.fitbittrack.pulse.direct.HeartDevice
 import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.model.PersonalPrefs
@@ -35,6 +36,10 @@ class UiPrefsStore(private val context: Context) {
     private val accountKey = stringPreferencesKey("account_name")
     private val healthConnectKey = booleanPreferencesKey("health_connect")
     private val airKey = booleanPreferencesKey("air")
+    private val liveStepsKey = booleanPreferencesKey("live_steps")
+    private val liveHeartKey = booleanPreferencesKey("live_heart")
+    private val bandAddressKey = stringPreferencesKey("heart_band")
+    private val bandNameKey = stringPreferencesKey("heart_band_name")
     private val chatKeepKey = booleanPreferencesKey("chat_keep")
     private val chatOffKey = stringPreferencesKey("chat_areas_off") // "Sleep,Body"
     private val calGoalsKey = stringPreferencesKey("calendar_goals") // "Steps,Calories"
@@ -56,6 +61,7 @@ class UiPrefsStore(private val context: Context) {
     suspend fun clearSession() = context.uiPrefsStore.edit {
         it.remove(connectedKey); it.remove(accountKey)
         it.remove(airKey) // the next person decides about location for themselves
+        it.remove(liveStepsKey); it.remove(liveHeartKey); it.remove(bandAddressKey); it.remove(bandNameKey)
     }
 
     /** Whether the user switched on reading today's numbers from Health Connect. Off by default. */
@@ -67,6 +73,23 @@ class UiPrefsStore(private val context: Context) {
     val air: Flow<Boolean> = context.uiPrefsStore.data.map { it[airKey] ?: false }
 
     suspend fun setAir(on: Boolean) = context.uiPrefsStore.edit { it[airKey] = on }
+
+    /** Band steps plus the phone's own steps since the last band sync. Off by default. */
+    val liveSteps: Flow<Boolean> = context.uiPrefsStore.data.map { it[liveStepsKey] ?: false }
+
+    suspend fun setLiveSteps(on: Boolean) = context.uiPrefsStore.edit { it[liveStepsKey] = on }
+
+    /** Whether Home connects to the band for live heart rate. Off by default. */
+    val liveHeart: Flow<Boolean> = context.uiPrefsStore.data.map { it[liveHeartKey] ?: false }
+
+    suspend fun setLiveHeart(on: Boolean) = context.uiPrefsStore.edit { it[liveHeartKey] = on }
+
+    /** The band that shared its heart rate last. */
+    val heartBand: Flow<HeartDevice?> = context.uiPrefsStore.data.map { p ->
+        p[bandAddressKey]?.let { HeartDevice(it, p[bandNameKey] ?: "Band", sharing = false) }
+    }
+
+    suspend fun setHeartBand(address: String, name: String) = context.uiPrefsStore.edit { it[bandAddressKey] = address; it[bandNameKey] = name }
 
     val chat: Flow<ChatPrefs> = context.uiPrefsStore.data.map { p ->
         val off = p[chatOffKey].orEmpty().split(",")

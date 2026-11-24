@@ -60,7 +60,7 @@ object Mappers {
             now = now,
             insight = insight(day, last30, lastNight, goals),
             latestBpm = latest?.bpm,
-            latestBpmAt = latest?.time?.local(),
+            latestBpmAt = latest?.time,
         )
     }
 
@@ -97,6 +97,7 @@ object Mappers {
         summaries: List<DaySummary>,
         today: LocalDate,
         goals: Goals,
+        latest: HeartRateSample? = samples.lastOrNull(),
     ): HeartUi {
         val todaySummary = summaries.lastOrNull { it.date == today }
         val restingNow = todaySummary?.restingHeartRate ?: summaries.lastOrNull { it.restingHeartRate != null }?.restingHeartRate
@@ -111,7 +112,7 @@ object Mappers {
         val window = (days - 1 downTo 0).map { back -> today.minusDays(back.toLong()) }
         return HeartUi(
             range = range,
-            latestBpm = samples.lastOrNull()?.bpm,
+            latestBpm = latest?.bpm,
             minBpm = samples.minOfOrNull { it.bpm },
             maxBpm = samples.maxOfOrNull { it.bpm },
             samples = samples.map { s -> s.time.atZone(zone).toLocalTime().let { HeartPoint(it.hour * 60 + it.minute, s.bpm) } },
@@ -235,6 +236,7 @@ object Mappers {
         needsSignIn = (s.state as? SyncState.Failed)?.needsSignIn == true,
         lastSuccessLabel = if (s.lastSuccess == null) "Not synced yet" else "Synced ${Fmt.ago(s.lastSuccess, now)}",
         lastTrackerLabel = if (s.lastTrackerSync == null) "unknown" else Fmt.ago(s.lastTrackerSync, now),
+        lastTrackerAt = s.lastTrackerSync,
         batteryPercent = s.battery?.level,
         batteryWord = s.battery?.status?.lowercase()?.replace('_', ' '),
         firstSyncPending = !isSample && s.lastSuccess == null,

@@ -18,11 +18,16 @@ import com.fitbittrack.pulse.data.remote.NeedsSignInException
 import com.fitbittrack.pulse.data.remote.Parsers
 import com.fitbittrack.pulse.data.remote.RollupSpec
 import com.fitbittrack.pulse.data.remote.num
+import com.fitbittrack.pulse.domain.HeartRateSample
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -48,6 +53,7 @@ import kotlin.math.roundToInt
  *   health metrics, recent sleep and workouts, and today's/yesterday's heart rate and hourly steps.
  *   Today's steps and heart rate start first; a few requests run at the same time.
  * - Today refresh ([refreshToday]): only today's totals, heart rate and hourly steps, while the app is open.
+ * - Band check ([checkBand]): one small request; only if the band has synced, a today refresh follows.
  * - History backfill (first run only): walks back 90 days at a time until two empty windows
  *   in a row (or 10 years), then fills every metric for that whole range. It has its own lock and
  *   its own progress, so it never blocks a refresh or delays the first numbers on screen.
@@ -92,6 +98,14 @@ class SyncEngine(
     @Volatile private var abortRequested = false
     @Volatile private var fullSyncRunning = false
     @Volatile private var lastStats = RunStats()
+
+    /** In memory only. */
+    private val _newestHeart = MutableStateFlow<HeartRateSample?>(null)
+    val newestHeart: StateFlow<HeartRateSample?> = _newestHeart.asStateFlow()
+    fun forgetNewest() { _newestHeart.value = null }
+
+    /** Google doesn't let this account ask for its devices: stop asking. */
+    @Volatile private var devicesRefused = false
 
     /** True while a full recent sync is running (pull-to-refresh uses this to return at once). */
     val isRunning: Boolean get() = fullSyncRunning
@@ -157,23 +171,56 @@ class SyncEngine(
      * Quick, silent update of today's totals, heart rate and hourly steps. Does nothing if another sync
      * is running. Problems are left for the next full sync to report, except "sign in again".
      */
-    suspend fun refreshToday(): Boolean {
+    suspend fun refreshToday(): Boolean = quick { updateToday() }
+
+    /**
+     * Has the band synced since we last looked? If so, updates today's numbers first and only then moves
+     * "newest band data" on, so that time never runs ahead of the numbers. Silent like [refreshToday].
+     */
+    suspend fun checkBand(): Boolean {
+        if (devicesRefused) return false
+        return quick {
+            val devices = try {
+                client.pairedDevices()
+            } catch (e: HealthApiException) {
+                if (e.httpCode == 403 || e.httpCode == 404) devicesRefused = true
+                throw e
+            }
+            checkNotAborted()
+            store.setBattery(Parsers.battery(devices))
+            val synced = Parsers.lastTrackerSync(devices) ?: return@quick false
+            val known = store.syncStatus.first().lastTrackerSync
+            if (known != null && synced <= known) return@quick false
+            if (!updateToday()) return@quick false
+            checkNotAborted()
+            store.setLastTrackerSync(synced)
+            true
+        }
+    }
+
+    private suspend fun updateToday(): Boolean {
+        val stats = RunStats()
+        val today = today()
+        parallel(
+            buildList<suspend () -> Unit> {
+                add { optional(stats, "heart-rate") { fetchHeartRate(today) } }
+                add { optional(stats, "steps-hourly") { fetchHourlySteps(today) } }
+                DAILY_ROLLUPS.forEach { spec ->
+                    add { optional(stats, spec.dataType) { saveDaily(fetchRollup(spec, today, today.plusDays(1))) } }
+                }
+            }
+        )
+        if (stats.ok.get() > 0) notifyChanged()
+        // Without the steps the numbers on screen are still the old ones.
+        return stats.ok.get() > 0 && "steps" !in stats.failed
+    }
+
+    /** One quick update, unless another sync is running. */
+    private suspend fun quick(block: suspend () -> Boolean): Boolean {
         if (abortRequested || !syncLock.tryLock()) return false
         try {
             checkNotAborted()
-            val stats = RunStats()
-            val today = today()
-            parallel(
-                buildList<suspend () -> Unit> {
-                    add { optional(stats, "heart-rate") { fetchHeartRate(today) } }
-                    add { optional(stats, "steps-hourly") { fetchHourlySteps(today) } }
-                    DAILY_ROLLUPS.forEach { spec ->
-                        add { optional(stats, spec.dataType) { saveDaily(fetchRollup(spec, today, today.plusDays(1))) } }
-                    }
-                }
-            )
-            if (stats.ok.get() > 0) notifyChanged()
-            return stats.ok.get() > 0
+            return block()
         } catch (e: CancellationException) {
             throw e
         } catch (e: NeedsSignInException) {
@@ -283,6 +330,7 @@ class SyncEngine(
     // ---------------- recent ----------------
 
     private suspend fun syncRecent(stats: RunStats) {
+        val started = clock.instant()
         val today = today()
         val yesterday = today.minusDays(1)
         val since = today.minusDays(13)
@@ -303,7 +351,7 @@ class SyncEngine(
                 add { optional(stats, "exercise") { saveWorkouts(since = since) } }
                 add { optional(stats, "heart-rate (yesterday)") { fetchHeartRate(yesterday) } }
                 add { optional(stats, "steps-hourly (yesterday)") { fetchHourlySteps(yesterday) } }
-                add { updateTrackerSync() }
+                add { updateTrackerSync(started) }
             }
         )
     }
@@ -317,10 +365,11 @@ class SyncEngine(
             client.list(spec.dataType, pageSize = 1000, onPage = onPage)
         }
 
-    private suspend fun updateTrackerSync() {
+    /** A band sync during this run may be newer than the numbers just fetched: the next check picks it up. */
+    private suspend fun updateTrackerSync(started: Instant) {
         try {
             val devices = client.pairedDevices()
-            Parsers.lastTrackerSync(devices)?.let { checkNotAborted(); store.setLastTrackerSync(it) }
+            Parsers.lastTrackerSync(devices)?.takeIf { it <= started }?.let { checkNotAborted(); store.setLastTrackerSync(it) }
             store.setBattery(Parsers.battery(devices))
         } catch (e: HealthApiException) {
             // Optional: the paired-devices call may need a permission the user did not grant.
@@ -449,6 +498,23 @@ class SyncEngine(
         checkNotAborted()
         dao.replaceHeartRate(date.toString(), rows)
         dao.upsertFetched(FetchedDayEntity(date.toString(), KIND_HR, clock.millis()))
+        if (date == today()) rows.maxByOrNull { it.epochSecond }?.let { fetchNewestHeart(Instant.ofEpochSecond(it.epochSecond)) }
+    }
+
+    /** The last single reading, from the newest 5 minutes that have any. An extra: the averages are enough without it. */
+    private suspend fun fetchNewestHeart(from: Instant) {
+        try {
+            val points = client.list(
+                "heart-rate",
+                filter = "heart_rate.sample_time.physical_time >= \"$from\" AND heart_rate.sample_time.physical_time < \"${from.plusSeconds(300)}\"",
+                pageSize = 1000, maxPages = 1,
+            )
+            val newest = Parsers.newestHeart(points) ?: return
+            checkNotAborted()
+            if ((_newestHeart.value?.time ?: Instant.MIN) < newest.time) _newestHeart.value = newest
+        } catch (e: HealthApiException) {
+            if (e.isUnauthorized) throw e
+        }
     }
 
     /** Steps per local hour (rollUp with 3600s windows, field countSum). On the 25-hour DST day the repeated hour is added up. */

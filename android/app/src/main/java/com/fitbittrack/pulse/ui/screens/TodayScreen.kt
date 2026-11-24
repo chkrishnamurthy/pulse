@@ -24,6 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +48,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.fitbittrack.pulse.air.AirLevel
 import com.fitbittrack.pulse.air.AirProblem
 import com.fitbittrack.pulse.air.AirReading
@@ -66,6 +74,7 @@ import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.goals.DayGoals
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.goals.GoalProgress
+import com.fitbittrack.pulse.ui.model.HomeLive
 import com.fitbittrack.pulse.ui.model.MetricKind
 import com.fitbittrack.pulse.ui.model.SyncUi
 import com.fitbittrack.pulse.ui.model.TodayCard
@@ -73,10 +82,10 @@ import com.fitbittrack.pulse.ui.model.TodayUi
 import com.fitbittrack.pulse.ui.model.UiPrefs
 import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.theme.PulseTheme
+import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -93,7 +102,10 @@ fun TodayScreen(
     /** Null until the setting has been read. */
     airOn: Boolean?,
     air: AirState,
+    live: HomeLive,
     onRefresh: () -> Unit,
+    /** Opens Google Health, which syncs the band. Null when there is nothing to open. */
+    onGetNewest: (() -> Unit)?,
     onConnect: () -> Unit,
     onOpenSync: () -> Unit,
     onCalendar: () -> Unit,
@@ -113,7 +125,7 @@ fun TodayScreen(
         PulsePage(contentPadding) {
             // Closer together than other pages, so the whole day fits on one screen.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                HomeHeader(today.date, sync, isSample, onConnect, onOpenSync) { onAsk(null) }
+                HomeHeader(today.date, sync, isSample, onConnect, onOpenSync, onGetNewest) { onAsk(null) }
                 if (sync.firstSyncPending || sync.historyLabel != null) FirstSyncCard(sync)
 
                 homeRows(shown).forEach { row ->
@@ -128,7 +140,7 @@ fun TodayScreen(
                             RingCard(
                                 circle = goals.items.filter { it.metric in prefs.ringGoals },
                                 lines = homeGoals(goals.items, prefs.ringGoals),
-                                bpm = today.latestBpm, bpmAt = today.latestBpmAt, level = level, units = prefs.units,
+                                bpm = today.latestBpm, bpmAt = today.latestBpmAt, live = live, level = level, units = prefs.units,
                                 onRing = { onDay(today.date) }, onHeart = onOpenHeart,
                             ) { m -> if (m == GoalMetric.Sleep) onOpenSleep() else onMetric(MetricKind.entries.first { it.goal == m }) }
                         }
@@ -178,7 +190,10 @@ internal fun joinWords(words: List<String>): String {
 private fun largeText(): Boolean = LocalDensity.current.fontScale > 1.3f
 
 @Composable
-private fun HomeHeader(date: LocalDate, sync: SyncUi, isSample: Boolean, onConnect: () -> Unit, onOpenSync: () -> Unit, onAsk: () -> Unit) {
+private fun HomeHeader(
+    date: LocalDate, sync: SyncUi, isSample: Boolean,
+    onConnect: () -> Unit, onOpenSync: () -> Unit, onGetNewest: (() -> Unit)?, onAsk: () -> Unit,
+) {
     val locale = LocalConfiguration.current.locales[0]
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -187,6 +202,7 @@ private fun HomeHeader(date: LocalDate, sync: SyncUi, isSample: Boolean, onConne
             FitLine(date.format(DateTimeFormatter.ofPattern(pattern, locale)), MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (isSample) SampleChip(onConnect) else SyncChip(sync, onOpenSync)
+        if (onGetNewest != null) IconButton(onClick = onGetNewest) { Icon(PulseIcons.Sync, contentDescription = "Get newest data") }
         IconButton(onClick = onAsk) { Icon(PulseIcons.Chat, contentDescription = "Ask Pulse") }
     }
 }
@@ -226,12 +242,13 @@ private fun FirstSyncCard(sync: SyncUi) {
 
 @Composable
 private fun RingCard(
-    circle: List<GoalProgress>, lines: List<GoalProgress>, bpm: Int?, bpmAt: LocalTime?, level: AirLevel?, units: Units,
+    circle: List<GoalProgress>, lines: List<GoalProgress>, bpm: Int?, bpmAt: Instant?, live: HomeLive, level: AirLevel?, units: Units,
     onRing: () -> Unit, onHeart: () -> Unit, onGoal: (GoalMetric) -> Unit,
 ) {
+    val now = rememberNow()
     val rows: @Composable () -> Unit = {
-        lines.forEach { g -> GoalLine(g, units, Modifier.fillMaxWidth()) { onGoal(g.metric) } }
-        HeartLine(bpm, bpmAt, Modifier.fillMaxWidth(), onHeart)
+        lines.forEach { g -> GoalLine(g, live, units, now, Modifier.fillMaxWidth()) { onGoal(g.metric) } }
+        HeartLine(bpm, bpmAt, live.bpm, now, Modifier.fillMaxWidth(), onHeart)
     }
     val large = largeText()
     Box(Modifier.fillMaxWidth().clip(CardShape).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = Space.gap, vertical = 8.dp)) {
@@ -290,27 +307,67 @@ private fun AirRing(goals: List<GoalProgress>, level: AirLevel?, size: Dp, onCli
     }
 }
 
+/** The time, every few seconds while on screen, for "20 sec" and "8 min". */
 @Composable
-private fun GoalLine(g: GoalProgress, units: Units, modifier: Modifier, onClick: () -> Unit) {
+internal fun rememberNow(): Instant {
+    var now by remember { mutableStateOf(Instant.now()) }
+    val owner = LocalLifecycleOwner.current
+    LaunchedEffect(owner) {
+        owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                now = Instant.now()
+                delay(5_000)
+            }
+        }
+    }
+    return now
+}
+
+/** What a goal line says. Live steps carry a "~"; only the band's own count can say "Done". */
+internal data class GoalLook(val amount: Double?, val about: Boolean, val value: String, val age: String?)
+
+internal fun goalLook(g: GoalProgress, live: HomeLive, now: Instant): GoalLook {
+    val quick = live.steps?.takeIf { g.metric == GoalMetric.Steps && it > (g.value ?: 0.0) }
+    val fromBand = g.metric == GoalMetric.Steps || g.metric == GoalMetric.Calories
+    val value = when {
+        g.met -> "Done"
+        quick != null && g.target > 0 -> "${(quick / g.target * 100).toInt().coerceAtMost(99)}%"
+        else -> g.percent?.let { "$it%" } ?: Fmt.NONE
+    }
+    val age = if (quick != null) LIVE else live.bandUpTo?.takeIf { fromBand && g.value != null }?.let { Fmt.age(it, now) }
+    return GoalLook(quick?.toDouble() ?: g.value, quick != null, value, age)
+}
+
+private const val LIVE = "Live"
+
+@Composable
+private fun GoalLine(g: GoalProgress, live: HomeLive, units: Units, now: Instant, modifier: Modifier, onClick: () -> Unit) {
+    val look = goalLook(g, live, now)
     ValueLine(
         g.metric.label, PulseTheme.colors.label(g.metric.tone),
-        if (g.value == null) "No data" else "${goalValue(g.metric, g.value, units)} of ${goalValue(g.metric, g.target, units)}",
-        if (g.met) "Done" else g.percent?.let { "$it%" } ?: Fmt.NONE, modifier, onClick,
+        if (look.amount == null) "No data" else (if (look.about) "~" else "") + "${goalValue(g.metric, look.amount, units)} of ${goalValue(g.metric, g.target, units)}",
+        look.value, look.age, modifier, onClick,
     )
 }
 
 @Composable
-private fun HeartLine(bpm: Int?, at: LocalTime?, modifier: Modifier, onClick: () -> Unit) {
+private fun HeartLine(bpm: Int?, at: Instant?, live: Int?, now: Instant, modifier: Modifier, onClick: () -> Unit) {
     ValueLine(
         "Heart rate", PulseTheme.colors.heartLabel,
-        if (bpm == null) "No data today" else "At ${Fmt.clock(at)}",
-        bpm?.let { "$it bpm" } ?: Fmt.NONE, modifier, onClick,
+        when {
+            live != null -> "From your band"
+            bpm == null || at == null -> "No data today"
+            else -> "At ${Fmt.clock(at.atZone(ZoneId.systemDefault()).toLocalTime())}"
+        },
+        (live ?: bpm)?.let { "$it bpm" } ?: Fmt.NONE,
+        if (live != null) LIVE else at?.takeIf { bpm != null }?.let { Fmt.age(it, now) },
+        modifier, onClick,
     )
 }
 
-/** A name with a quiet line under it, and the number on the right. */
+/** A name with a quiet line under it, and the number on the right with its age. */
 @Composable
-private fun ValueLine(name: String, color: Color, note: String, value: String, modifier: Modifier, onClick: () -> Unit) {
+private fun ValueLine(name: String, color: Color, note: String, value: String, age: String?, modifier: Modifier, onClick: () -> Unit) {
     Row(
         modifier.clip(MaterialTheme.shapes.medium).clickable(role = Role.Button, onClick = onClick).heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -319,7 +376,16 @@ private fun ValueLine(name: String, color: Color, note: String, value: String, m
             FitLine(name, MaterialTheme.typography.labelLarge, color)
             FitLine(note, MaterialTheme.typography.bodySmall, MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            if (age != null) {
+                Text(
+                    age, style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                    color = if (age == LIVE) PulseTheme.colors.good else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { contentDescription = if (age == LIVE || age == "now") age else "$age ago" },
+                )
+            }
+        }
     }
 }
 

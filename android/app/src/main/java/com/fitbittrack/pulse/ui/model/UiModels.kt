@@ -1,5 +1,6 @@
 package com.fitbittrack.pulse.ui.model
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -71,7 +72,17 @@ data class TodayUi(
     val insight: Insight?,
     /** Newest heart rate of today, and when it was measured. */
     val latestBpm: Int? = null,
-    val latestBpmAt: LocalTime? = null,
+    val latestBpmAt: Instant? = null,
+)
+
+/** The quick numbers on Home. All empty on sample data. */
+data class HomeLive(
+    /** Band steps plus the phone's own steps since. Null when there is nothing to add. */
+    val steps: Long? = null,
+    /** How far the band's numbers reach. */
+    val bandUpTo: Instant? = null,
+    /** Straight from the band, right now. */
+    val bpm: Int? = null,
 )
 
 enum class Range(val label: String, val days: Int) { Day("Day", 1), Week("Week", 7), Month("Month", 30) }
@@ -166,6 +177,7 @@ data class SyncUi(
     val needsSignIn: Boolean,
     val lastSuccessLabel: String,
     val lastTrackerLabel: String,
+    val lastTrackerAt: Instant? = null,
     /** Band battery in percent, null when Google has not said. */
     val batteryPercent: Int? = null,
     val batteryWord: String? = null,

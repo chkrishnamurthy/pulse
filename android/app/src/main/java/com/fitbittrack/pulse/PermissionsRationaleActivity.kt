@@ -22,7 +22,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     PulsePage(padding) {
                         Text("How Pulse uses Health Connect", style = MaterialTheme.typography.headlineMedium)
                         listOf(
-                            "Pulse reads today's steps, distance, floors and heart rate, so your numbers appear faster.",
+                            "Pulse reads today's steps, distance, floors, calories and heart rate, so your numbers appear faster. Steps counted by your phone are used only for the live step count.",
                             "It only reads. It never changes or adds anything.",
                             "What it reads stays in the app's memory. It is not saved, not sent anywhere, and gone when Pulse closes.",
                             "You can turn this off in Pulse → Settings, or in Health Connect, at any time.",

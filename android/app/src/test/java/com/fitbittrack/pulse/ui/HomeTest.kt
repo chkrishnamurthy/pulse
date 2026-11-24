@@ -8,6 +8,8 @@ import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.goals.GoalProgress
 import com.fitbittrack.pulse.ui.model.Mappers
+import com.fitbittrack.pulse.ui.format.Fmt
+import com.fitbittrack.pulse.ui.model.HomeLive
 import com.fitbittrack.pulse.ui.model.SyncUi
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.Units
@@ -19,6 +21,8 @@ import com.fitbittrack.pulse.ui.screens.airTag
 import com.fitbittrack.pulse.ui.screens.bandLook
 import com.fitbittrack.pulse.ui.screens.dayPercent
 import com.fitbittrack.pulse.ui.screens.homeGoals
+import com.fitbittrack.pulse.ui.screens.GoalLook
+import com.fitbittrack.pulse.ui.screens.goalLook
 import com.fitbittrack.pulse.ui.screens.homeRows
 import com.fitbittrack.pulse.ui.screens.joinWords
 import org.junit.Assert.assertEquals
@@ -90,7 +94,7 @@ class HomeTest {
         val at = day.atTime(8, 31).atZone(ZoneId.systemDefault()).toInstant()
         val ui = Mappers.today(day, null, emptyList(), emptyList(), null, Goals(), LocalTime.NOON, HeartRateSample(at, 72))
         assertEquals(72, ui.latestBpm)
-        assertEquals(LocalTime.of(8, 31), ui.latestBpmAt)
+        assertEquals(at, ui.latestBpmAt)
         assertNull(Mappers.today(day, null, emptyList(), emptyList(), null, Goals(), LocalTime.NOON).latestBpm)
     }
 
@@ -121,6 +125,27 @@ class HomeTest {
         assertEquals("About 1.2 km away, 20 min ago", airFrom(station, Units.Metric, now))
         assertEquals("For your area, 12:00 pm", airFrom(AirReading(42, now, AirSource.Estimate), Units.Metric, now, ZoneId.of("UTC")))
         assertEquals("Estimate, 12:00 pm", airFrom(AirReading(42, now, AirSource.Estimate), Units.Metric, now, ZoneId.of("UTC"), short = true))
+    }
+
+    @Test fun `live steps carry a sign and only the band can finish a goal`() {
+        val now = Instant.parse("2026-11-24T10:00:00Z")
+        val live = HomeLive(steps = 102, bandUpTo = now.minusSeconds(480))
+        assertEquals(GoalLook(102.0, true, "99%", "Live"), goalLook(goal(90.0), live, now))
+        assertEquals(GoalLook(120.0, false, "Done", "8 min"), goalLook(goal(120.0), live, now)) // the band is ahead
+        assertEquals(GoalLook(90.0, false, "90%", "8 min"), goalLook(goal(90.0), live.copy(steps = null), now))
+        assertEquals(GoalLook(102.0, true, "99%", "Live"), goalLook(goal(null), live, now))
+        assertEquals(GoalLook(null, false, "–", null), goalLook(goal(null), HomeLive(), now))
+        // Sleep is not from the last minutes: no age, and never live.
+        assertEquals(GoalLook(90.0, false, "90%", null), goalLook(GoalProgress(GoalMetric.Sleep, 90.0, 100.0), live, now))
+        assertEquals(GoalLook(90.0, false, "90%", "8 min"), goalLook(GoalProgress(GoalMetric.Calories, 90.0, 100.0), live, now))
+    }
+
+    @Test fun `the age of a number is short`() {
+        val now = Instant.parse("2026-11-24T10:00:00Z")
+        assertEquals(
+            listOf("now", "now", "20 sec", "1 min", "59 min", "2 h", "1 day", "3 days"),
+            listOf(-5L, 9, 29, 60, 3_599, 7_300, 90_000, 260_000).map { Fmt.age(now.minusSeconds(it), now) },
+        )
     }
 
     @Test fun `goal names read as a sentence`() {

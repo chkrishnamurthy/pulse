@@ -26,6 +26,11 @@ data class LocalSnapshot(
     /** How fresh the data is: end of the newest record, not the time we looked. */
     val newestSteps: Instant? = null,
     val newestHeart: Instant? = null,
+    val caloriesKcal: Double? = null,
+    /** The last single reading ([heart] holds averages). */
+    val lastHeart: HeartRateSample? = null,
+    /** Steps this phone counted itself in the last hours. Never added to the band's total, except for live steps. */
+    val phoneSteps: List<StepPart> = emptyList(),
 )
 
 object Lanes {
@@ -36,12 +41,13 @@ object Lanes {
      */
     fun mergeDay(cloud: DaySummary?, local: LocalSnapshot?, date: LocalDate): DaySummary? {
         if (local == null || local.day != date) return cloud
-        if (cloud == null && local.steps == null && local.distanceMeters == null && local.floors == null) return null
+        if (cloud == null && local.steps == null && local.distanceMeters == null && local.floors == null && local.caloriesKcal == null) return null
         val base = cloud ?: DaySummary(date)
         return base.copy(
             steps = larger(base.steps, local.steps),
             distanceMeters = larger(base.distanceMeters, local.distanceMeters),
             floors = larger(base.floors, local.floors),
+            caloriesKcal = larger(base.caloriesKcal, local.caloriesKcal),
         )
     }
 
@@ -65,6 +71,24 @@ object Lanes {
         if (end <= from) return 0.0
         return value * Duration.between(from, end).toMillis() / Duration.between(start, end).toMillis()
     }
+
+    /** The newer of two readings. */
+    fun newer(a: HeartRateSample?, b: HeartRateSample?): HeartRateSample? =
+        if (a == null) b else if (b == null || a.time >= b.time) a else b
+
+    /** Adds up one source's records from [from] on. Time that two records share is counted once. */
+    fun sumOnce(records: List<Triple<Instant, Instant, Double>>, from: Instant): Double {
+        var done = from
+        var sum = 0.0
+        records.sortedWith(compareBy({ it.first }, { it.second })).forEach { (start, end, value) ->
+            sum += partAfter(done, start, end, value)
+            if (end > done) done = end
+        }
+        return sum
+    }
+
+    /** Steps counted by the phone itself and kept by Health Connect. "android" until June 2026, a name per phone since. */
+    fun isPhoneSource(packageName: String): Boolean = packageName == "android" || packageName.startsWith("com.android.healthconnect.phone.")
 
     private fun <T : Comparable<T>> larger(a: T?, b: T?): T? = if (a == null) b else if (b == null) a else maxOf(a, b)
 

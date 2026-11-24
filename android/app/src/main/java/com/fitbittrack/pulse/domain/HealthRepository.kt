@@ -1,6 +1,7 @@
 package com.fitbittrack.pulse.domain
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.Duration
 import java.time.LocalDate
@@ -16,6 +17,9 @@ interface HealthRepository {
 
     /** Heart rate for one local day, in 5-minute averages. Fetched on demand for older days. */
     fun heartRate(date: LocalDate): Flow<List<HeartRateSample>>
+
+    /** The newest single heart-rate reading, when it is known. [heartRate] holds 5-minute averages, so it is always a bit older. */
+    val newestHeart: Flow<HeartRateSample?> get() = flowOf(null)
 
     /** 24 entries for local hours 0..23. null = no data for that hour yet. Fetched on demand for older days. */
     fun hourlySteps(date: LocalDate): Flow<List<Long?>>
@@ -46,6 +50,9 @@ interface HealthRepository {
 
     /** Quick, silent update of today's numbers (used while the app stays open). */
     suspend fun refreshToday() {}
+
+    /** Asks only whether the band has synced. If so, updates today's numbers and returns true. */
+    suspend fun checkBand(): Boolean = false
 
     /** Deletes the local copy only. Your data at Google is not touched. */
     suspend fun deleteAllLocalData()

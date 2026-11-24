@@ -10,6 +10,12 @@
     <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+
+    <!-- Live steps: the phone's own step sensor, only while Pulse is open. Asked only when the user switches it on. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.stepdetector" android:required="false" />
 
     <!-- Live heart rate from the band over Bluetooth (LiveHeart). Never used to find your location. -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
@@ -28,6 +34,8 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Google Health (the former Fitbit app): "Get newest data" opens it, so it syncs the band. -->
+        <package android:name="com.fitbit.FitbitMobile" />
     </queries>
 
     <!-- allowBackup=false: health data must never go to cloud backups. -->

@@ -295,6 +295,76 @@ class SyncEngineTest {
         assertEquals(SyncState.Idle, store.syncStatus.first().state)
     }
 
+    private val devicesPath = "/v4/users/me/pairedDevices?pageSize=100"
+    private fun devices(at: String) = ok("""{"pairedDevices":[{"deviceType":"TRACKER","lastSyncTime":"$at","batteryLevel":80}]}""")
+    private val oneAverage = """{"rollupDataPoints":[{"startTime":"2026-11-22T06:20:00Z","endTime":"2026-11-22T06:25:00Z","heartRate":{"beatsPerMinuteAvg":70.2}}]}"""
+
+    @Test fun bandCheckDownloadsOnlyAfterANewBandSync() = runBlocking {
+        val e = engine()
+        assertEquals(SyncEngine.Outcome.OK, e.sync(false))
+        requests.clear()
+        // Same sync time as before: one small request, nothing else.
+        assertFalse(e.checkBand())
+        assertEquals(1, requests.size)
+
+        overrides[devicesPath] = { devices("2026-11-22T06:20:00Z") }
+        requests.clear()
+        assertTrue(e.checkBand())
+        assertEquals(9, requests.size)
+        val status = store.syncStatus.first()
+        assertEquals(Instant.parse("2026-11-22T06:20:00Z"), status.lastTrackerSync)
+        assertEquals(80, status.battery?.level)
+        assertEquals(SyncState.Idle, status.state)
+        assertFalse(e.checkBand())
+    }
+
+    @Test fun bandTimeStaysBehindWhenTheStepsDidNotArrive() = runBlocking {
+        val e = engine()
+        overrides["steps"] = { MockResponse().setResponseCode(503).setBody("{}") }
+        assertFalse(e.checkBand())
+        assertEquals(null, store.syncStatus.first().lastTrackerSync)
+        overrides.remove("steps")
+        assertTrue(e.checkBand()) // tried again at the next look
+    }
+
+    @Test fun bandSyncedDuringAFullSyncIsLeftForTheNextCheck() = runBlocking {
+        overrides[devicesPath] = { devices("2026-11-22T06:30:02Z") } // just after this sync began
+        val e = engine()
+        assertEquals(SyncEngine.Outcome.OK, e.sync(false))
+        assertEquals(null, store.syncStatus.first().lastTrackerSync)
+        assertTrue(e.checkBand())
+    }
+
+    @Test fun refusedDevicesAreNotAskedAgain() = runBlocking {
+        overrides[devicesPath] = { MockResponse().setResponseCode(403).setBody("{}") }
+        val e = engine()
+        assertFalse(e.checkBand())
+        assertFalse(e.checkBand())
+        assertEquals(1, requests.size)
+    }
+
+    @Test fun newestHeartReadingIsFoundAndForgotten() = runBlocking {
+        overrides["heart-rate"] = { r ->
+            if (r.path!!.contains(":rollUp")) ok(oneAverage)
+            else ok("""{"dataPoints":[{"heartRate":{"sampleTime":{"physicalTime":"2026-11-22T06:21:00Z"},"beatsPerMinute":"66"}},{"heartRate":{"sampleTime":{"physicalTime":"2026-11-22T06:23:30Z"},"beatsPerMinute":"81"}}]}""")
+        }
+        val e = engine()
+        assertTrue(e.refreshToday())
+        assertEquals(com.fitbittrack.pulse.domain.HeartRateSample(Instant.parse("2026-11-22T06:23:30Z"), 81), e.newestHeart.value)
+        val asked = requests.first { it.method == "GET" && typeOf(it.path!!) == "heart-rate" }.requestUrl!!.queryParameter("filter")!!
+        assertEquals("heart_rate.sample_time.physical_time >= \"2026-11-22T06:20:00Z\" AND heart_rate.sample_time.physical_time < \"2026-11-22T06:25:00Z\"", asked)
+        e.forgetNewest()
+        assertEquals(null, e.newestHeart.value)
+    }
+
+    @Test fun withoutSingleReadingsTheAveragesStillCount() = runBlocking {
+        overrides["heart-rate"] = { r -> if (r.path!!.contains(":rollUp")) ok(oneAverage) else MockResponse().setResponseCode(400).setBody("{}") }
+        val e = engine()
+        assertTrue(e.refreshToday())
+        assertEquals(70, dao.hr.values.single().bpm)
+        assertEquals(null, e.newestHeart.value)
+    }
+
     @Test fun refreshTodayOfflineShowsNoError() = runBlocking {
         overrides["*"] = { MockResponse().setResponseCode(503).setBody("{}") }
         assertFalse(engine().refreshToday())

@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 /** A device that may offer live heart rate. [sharing] = it is announcing the heart-rate service right now. */
@@ -31,8 +33,16 @@ sealed interface LiveState {
     data object Off : LiveState
     data class Searching(val devices: List<HeartDevice> = emptyList()) : LiveState
     data class Connecting(val name: String) : LiveState
-    data class Live(val name: String, val bpm: Int?, val onSkin: Boolean, val history: List<Int>) : LiveState
+    data class Live(val device: HeartDevice, val bpm: Int?, val onSkin: Boolean, val history: List<Int>, val at: Instant) : LiveState {
+        val name: String get() = device.name
+        /** The number for other screens: none when the band is off the skin or has gone quiet. */
+        fun bpmAt(now: Instant): Int? = bpm?.takeIf { onSkin && Duration.between(at, now) <= QUIET }
+    }
     data class Failed(val message: String) : LiveState
+
+    companion object {
+        val QUIET: Duration = Duration.ofSeconds(10)
+    }
 }
 
 /**
@@ -150,9 +160,9 @@ class LiveHeart(private val context: Context) {
         if (g !== gatt) return@guarded
         main.removeCallbacks(tooSlow)
         val bpm = HeartRateProfile.bpm(value)
-        val name = g.device.name ?: "Band"
+        val device = HeartDevice(g.device.address, g.device.name ?: "Band", sharing = true)
         val before = (_state.value as? LiveState.Live)?.history.orEmpty()
-        _state.value = LiveState.Live(name, bpm, HeartRateProfile.onSkin(value), (before + listOfNotNull(bpm)).takeLast(HISTORY))
+        _state.value = LiveState.Live(device, bpm, HeartRateProfile.onSkin(value), (before + listOfNotNull(bpm)).takeLast(HISTORY), Instant.now())
     }
 
     private val tooSlow = Runnable { fail("No heart rate arrived. Start \"Share heart rate\" in Google Health, then try again.") }

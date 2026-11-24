@@ -40,6 +40,19 @@ object Fmt {
 
     fun clock(t: LocalTime?): String = t?.format(time())?.lowercase() ?: NONE
 
+    /** How old a number is, very short: "now", "20 sec", "8 min", "3 h", "2 days". */
+    fun age(at: Instant, now: Instant): String {
+        val s = Duration.between(at, now).seconds
+        return when {
+            s < 10 -> "now"
+            s < 60 -> "${s / 10 * 10} sec"
+            s < 3_600 -> "${s / 60} min"
+            s < 86_400 -> "${s / 3_600} h"
+            s < 172_800 -> "1 day"
+            else -> "${s / 86_400} days"
+        }
+    }
+
     /** "just now", "12 min ago", "3 h ago", "2 days ago". */
     fun ago(instant: Instant?, now: Instant = Instant.now()): String {
         if (instant == null) return "never"

@@ -80,6 +80,30 @@ class DashboardViewModelTest {
         vm.stopLiveRefresh()
     }
 
+    @Test fun `after a band sync the numbers are looked at again twice, soon`() = runTest(dispatcher) {
+        var checks = 0
+        var live = 0
+        val repo = object : com.fitbittrack.pulse.domain.HealthRepository by com.fitbittrack.pulse.ui.sample.SampleHealthRepository() {
+            override suspend fun refreshIfStale(maxAge: java.time.Duration) {}
+            override suspend fun refreshToday() { live++ }
+            override suspend fun checkBand(): Boolean { checks++; if (checks == 1) error("offline"); return checks == 3 }
+        }
+        val vm = DashboardViewModel()
+        vm.useRepository(repo)
+        vm.startLiveRefresh()
+        runCurrent()
+        advanceTimeBy(15_001) // three quick looks; the third finds a sync, which has updated the numbers itself
+        assertEquals(3 to 0, checks to live)
+        advanceTimeBy(10_000)
+        assertEquals(5 to 2, checks to live)
+        advanceTimeBy(30_000)
+        assertEquals(2, live)
+        vm.stopLiveRefresh()
+        val before = checks
+        advanceTimeBy(60_000)
+        assertEquals(before, checks)
+    }
+
     @Test fun `starts on sample data and switches to a real repository`() = runTest(dispatcher) {
         val vm = DashboardViewModel()
         val job = launch { vm.isSample.collect { } }

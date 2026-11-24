@@ -9,9 +9,11 @@ import androidx.health.connect.client.records.FloorsClimbedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateGroupByDurationRequest
 import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.fitbittrack.pulse.domain.HeartRateSample
@@ -34,6 +36,8 @@ data class LocalLaneStatus(
     /** Other apps that wrote data Pulse deliberately does not use. */
     val unusedSources: List<String> = emptyList(),
     val error: String? = null,
+    /** Steps and heart rate are allowed, calories are not (they came in a later version). */
+    val caloriesMissing: Boolean = false,
 ) {
     enum class State { Unavailable, NeedsUpdate, Off, NeedsPermission, NoBandData, On }
 }
@@ -73,7 +77,11 @@ class LocalLane private constructor(private val context: Context) {
         }
     }
 
-    fun clear() { _snapshot.value = null }
+    fun clear() { _snapshot.value = null; seen = null }
+
+    /** What the last full read covered, and the ticket to ask whether anything changed since. */
+    private data class Seen(val day: LocalDate, val granted: Set<String>, val token: String)
+    @Volatile private var seen: Seen? = null
 
     /** Looks once. Never throws (except cancellation); problems end up in [status]. */
     suspend fun poll() = lock.withLock {
@@ -86,10 +94,25 @@ class LocalLane private constructor(private val context: Context) {
             val client = HealthConnectClient.getOrCreate(context)
             val granted = client.permissionController.getGrantedPermissions()
             if (STEPS !in granted && HEART !in granted) return@withLock off(LocalLaneStatus.State.NeedsPermission)
+            val day = LocalDate.now()
+            val mine = granted intersect PERMISSIONS
+            val last = seen?.takeIf { it.day == day && it.granted == mine }
+            if (last != null) {
+                val c = client.getChanges(last.token)
+                if (!c.changesTokenExpired && c.changes.isEmpty() && !c.hasMore) {
+                    if (_status.value.error != null) _status.value = _status.value.copy(error = null)
+                    return@withLock
+                }
+            }
+            // The ticket is taken before reading: a change in between is seen at the next look.
+            val types = TYPES.filterValues { it in mine }.keys
+            val token = client.getChangesToken(ChangesTokenRequest(types))
             read(client, granted)
+            seen = Seen(day, mine, token)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            seen = null
             // Keep the last numbers (they can only be older, never wrong); try again at the next look.
             _status.value = _status.value.copy(error = "Health Connect did not answer (${e.javaClass.simpleName}).")
         }
@@ -97,6 +120,7 @@ class LocalLane private constructor(private val context: Context) {
 
     private fun off(state: LocalLaneStatus.State) {
         _snapshot.value = null
+        seen = null
         _status.value = LocalLaneStatus(state)
     }
 
@@ -113,13 +137,27 @@ class LocalLane private constructor(private val context: Context) {
             val (band, other) = records.partition { r ->
                 Lanes.isBandSource(r.metadata.dataOrigin.packageName, r.metadata.device?.manufacturer, r.metadata.device?.model)
             }
-            other.mapTo(unused) { it.metadata.dataOrigin.packageName }
+            other.map { it.metadata.dataOrigin.packageName }.filterNotTo(unused) { Lanes.isPhoneSource(it) }
             return band.maxByOrNull(end)?.let { it.metadata.dataOrigin to end(it) }
         }
 
         var snap = LocalSnapshot(day)
-        val steps = if (STEPS in granted) bandSource(newest(client, StepsRecord::class, recent)) { it.endTime } else null
-        val heart = if (HEART in granted) bandSource(newest(client, HeartRateRecord::class, recent)) { it.endTime } else null
+        val stepRecords = if (STEPS in granted) newest(client, StepsRecord::class, recent) else emptyList()
+        val heartRecords = if (HEART in granted) newest(client, HeartRateRecord::class, recent) else emptyList()
+        val steps = bandSource(stepRecords) { it.endTime }
+        val heart = bandSource(heartRecords) { it.endTime }
+        val phoneFrom = now.minus(LiveStepMath.MAX_AGE)
+        snap = snap.copy(phoneSteps = stepRecords.filter { Lanes.isPhoneSource(it.metadata.dataOrigin.packageName) && it.endTime > phoneFrom }
+            .map { StepPart(it.startTime, it.endTime, it.count) })
+        // Not from the aggregate: that fills empty hours with a guess of its own.
+        if (CALORIES in granted) {
+            val band = steps?.first ?: heart?.first
+            if (band != null) {
+                val from = day.atStartOfDay(zone).toInstant()
+                val parts = all(client, TotalCaloriesBurnedRecord::class, today, band).map { Triple(it.startTime, it.endTime, it.energy.inKilocalories) }
+                if (parts.isNotEmpty()) snap = snap.copy(caloriesKcal = Lanes.sumOnce(parts, from))
+            }
+        }
 
         if (steps != null) {
             val metrics = buildSet<AggregateMetric<*>> {
@@ -149,11 +187,13 @@ class LocalLane private constructor(private val context: Context) {
             snap = snap.copy(
                 heart = rows.mapNotNull { row -> row.result[HeartRateRecord.BPM_AVG]?.let { HeartRateSample(row.startTime, it.toInt()) } },
                 newestHeart = heart.second,
+                lastHeart = heartRecords.filter { it.metadata.dataOrigin == heart.first }.flatMap { it.samples }.maxByOrNull { it.time }
+                    ?.let { HeartRateSample(it.time, it.beatsPerMinute.toInt()) },
             )
         }
         _snapshot.value = snap
         val found = steps != null || heart != null
-        _status.value = LocalLaneStatus(if (found) LocalLaneStatus.State.On else LocalLaneStatus.State.NoBandData, unused.toList())
+        _status.value = LocalLaneStatus(if (found) LocalLaneStatus.State.On else LocalLaneStatus.State.NoBandData, unused.toList(), caloriesMissing = CALORIES !in granted)
     }
 
     private suspend fun <T : Record> newest(client: HealthConnectClient, type: kotlin.reflect.KClass<T>, range: TimeRangeFilter): List<T> =
@@ -164,14 +204,19 @@ class LocalLane private constructor(private val context: Context) {
         client: HealthConnectClient, type: kotlin.reflect.KClass<T>, range: TimeRangeFilter, source: DataOrigin,
         from: Instant, start: (T) -> Instant, end: (T) -> Instant, value: (T) -> Double,
     ): Double? {
-        val parts = mutableListOf<Double>()
+        val parts = all(client, type, range, source).map { Lanes.partAfter(from, start(it), end(it), value(it)) }
+        return if (parts.isEmpty()) null else parts.sum()
+    }
+
+    private suspend fun <T : Record> all(client: HealthConnectClient, type: kotlin.reflect.KClass<T>, range: TimeRangeFilter, source: DataOrigin): List<T> {
+        val out = mutableListOf<T>()
         var token: String? = null
         do {
             val page = client.readRecords(ReadRecordsRequest(type, range, setOf(source), pageSize = 1000, pageToken = token))
-            page.records.mapTo(parts) { Lanes.partAfter(from, start(it), end(it), value(it)) }
+            out += page.records
             token = page.pageToken
         } while (token != null)
-        return if (parts.isEmpty()) null else parts.sum()
+        return out
     }
 
     companion object {
@@ -179,9 +224,15 @@ class LocalLane private constructor(private val context: Context) {
         private val DISTANCE = HealthPermission.getReadPermission(DistanceRecord::class)
         private val FLOORS = HealthPermission.getReadPermission(FloorsClimbedRecord::class)
         private val HEART = HealthPermission.getReadPermission(HeartRateRecord::class)
+        private val CALORIES = HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
 
-        /** Read-only. The same four are declared in the manifest. */
-        val PERMISSIONS: Set<String> = setOf(STEPS, DISTANCE, FLOORS, HEART)
+        /** Read-only. The same five are declared in the manifest. */
+        val PERMISSIONS: Set<String> = setOf(STEPS, DISTANCE, FLOORS, HEART, CALORIES)
+
+        private val TYPES: Map<kotlin.reflect.KClass<out Record>, String> = mapOf(
+            StepsRecord::class to STEPS, DistanceRecord::class to DISTANCE, FloorsClimbedRecord::class to FLOORS,
+            HeartRateRecord::class to HEART, TotalCaloriesBurnedRecord::class to CALORIES,
+        )
 
         // Holds the application context only.
         @android.annotation.SuppressLint("StaticFieldLeak")

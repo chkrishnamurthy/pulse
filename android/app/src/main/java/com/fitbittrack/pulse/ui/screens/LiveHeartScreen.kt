@@ -32,12 +32,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LifecycleStartEffect
 import com.fitbittrack.pulse.direct.HeartDevice
 import com.fitbittrack.pulse.direct.LiveState
 import com.fitbittrack.pulse.ui.components.BigValue
 import com.fitbittrack.pulse.ui.components.PulseCard
 import com.fitbittrack.pulse.ui.components.DetailPage
+import com.fitbittrack.pulse.ui.components.RowGroup
 import com.fitbittrack.pulse.ui.components.Sparkline
 import com.fitbittrack.pulse.ui.components.StatusPill
 import com.fitbittrack.pulse.ui.format.Fmt
@@ -54,11 +54,13 @@ private fun allowed(context: Context) =
 @Composable
 fun LiveHeartScreen(
     state: LiveState,
+    onHome: Boolean,
     contentPadding: PaddingValues,
     onBack: () -> Unit,
     onSearch: () -> Unit,
     onConnect: (HeartDevice) -> Unit,
     onStop: () -> Unit,
+    onHomeChange: (Boolean) -> Unit,
 ) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
@@ -69,9 +71,6 @@ fun LiveHeartScreen(
         if (!refused) onSearch()
     }
     val search = { if (allowed(context)) { refused = false; onSearch() } else ask.launch(bluetoothPermissions) }
-
-    // Leaving the screen ends the connection, so it never uses battery in the background.
-    LifecycleStartEffect(Unit) { onStopOrDispose { onStop() } }
 
     val view = LocalView.current
     val live = state is LiveState.Live
@@ -119,6 +118,9 @@ fun LiveHeartScreen(
                 Button(onClick = search) { Text("Try again") }
             }
             LiveState.Off -> Button(onClick = search, modifier = Modifier.fillMaxWidth()) { Text("Find my band") }
+        }
+        if (live) {
+            RowGroup(listOf({ SwitchRow("Show on Home", "Pulse connects by itself while Home is open and the band shares its heart rate.", onHome, onHomeChange) }))
         }
         if (refused) {
             Text(

@@ -50,6 +50,8 @@ class HealthRepositoryImpl(
             .map { rows -> rows.map { it.toDomain() } }
             .onStart { appScope.launch { engine.ensureDetail(date, SyncEngine.KIND_HR) } }
 
+    override val newestHeart: Flow<HeartRateSample?> = engine.newestHeart
+
     override fun hourlySteps(date: LocalDate): Flow<List<Long?>> =
         dao.hourly(date.toString())
             .map { it.toHourly() }
@@ -92,11 +94,14 @@ class HealthRepositoryImpl(
         engine.refreshToday()
     }
 
+    override suspend fun checkBand(): Boolean = engine.checkBand()
+
     /** Stops any running sync first, so nothing is written back after the delete. */
     override suspend fun deleteAllLocalData() {
         engine.exclusive {
             withContext(Dispatchers.IO) { db.clearAllTables() }
             store.resetSync()
+            engine.forgetNewest()
         }
         try {
             onLocalDataChanged()

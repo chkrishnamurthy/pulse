@@ -2,8 +2,10 @@ package com.fitbittrack.pulse.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fitbittrack.pulse.direct.Lanes
 import com.fitbittrack.pulse.domain.Goals
 import com.fitbittrack.pulse.domain.HealthRepository
+import com.fitbittrack.pulse.domain.HeartRateSample
 import com.fitbittrack.pulse.ui.goals.DayGoals
 import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
@@ -49,6 +51,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -104,8 +107,15 @@ class DashboardViewModel(
     val goalsUi: StateFlow<GoalsUi> = goals.map { GoalsUi(it.dailySteps, it.sleepMinutes, it.weeklyActiveZoneMinutes, it.dailyFloors, it.dailyCalories, it.dailyDistanceMeters) }
         .state(GoalsUi(10_000, 480, 150, 10, 2_800, 7_000))
 
-    val sync: StateFlow<SyncUi> = source.flatMapLatest { s -> s.repo.syncStatus.map { Mappers.sync(it, s.isSample) } }
+    val sync: StateFlow<SyncUi> = // With the clock, so "12 min ago" moves on by itself.
+        source.flatMapLatest { s -> combine(s.repo.syncStatus, clock) { x, _ -> Mappers.sync(x, s.isSample) } }
         .state(SyncUi(false, null, null, false, "Not synced yet", "unknown", firstSyncPending = false))
+
+    /** The newest heart-rate reading of [d]: a single one when known, else the last 5-minute average. */
+    private fun latestHeart(repo: HealthRepository, d: LocalDate): Flow<HeartRateSample?> =
+        combine(repo.heartRate(d), repo.newestHeart) { list, one ->
+            Lanes.newer(list.lastOrNull(), one?.takeIf { it.time.atZone(ZoneId.systemDefault()).toLocalDate() == d })
+        }.distinctUntilChanged()
 
     val todayUi: StateFlow<TodayUi?> = ctx.flatMapLatest { (repo, d) ->
         combine(
@@ -113,16 +123,16 @@ class DashboardViewModel(
             repo.sleep(d, d),
             repo.goals,
             clock,
-            repo.heartRate(d),
+            latestHeart(repo, d),
         ) { (day, last30, hourly), nights, goals, t, hr ->
-            Mappers.today(d, day, last30, hourly, nights.lastOrNull { it.isMainSleep }, goals, t.toLocalTime(), hr.lastOrNull())
+            Mappers.today(d, day, last30, hourly, nights.lastOrNull { it.isMainSleep }, goals, t.toLocalTime(), hr)
         }
     }.state(null)
 
     val heartUi: StateFlow<HeartUi?> = combine(ctx, heartRange) { c, r -> c to r }.flatMapLatest { (c, range) ->
         val from = c.day.minusDays(maxOf(range.days, 30).toLong() - 1)
-        combine(c.repo.heartRate(c.day), c.repo.daySummaries(from, c.day), c.repo.goals) { samples, sums, goals ->
-            Mappers.heart(range, samples, sums, c.day, goals)
+        combine(c.repo.heartRate(c.day), c.repo.daySummaries(from, c.day), c.repo.goals, latestHeart(c.repo, c.day)) { samples, sums, goals, latest ->
+            Mappers.heart(range, samples, sums, c.day, goals, latest)
         }
     }.state(null)
 
@@ -201,12 +211,12 @@ class DashboardViewModel(
     }
 
     val hubUi: StateFlow<HubUi?> = ctx.flatMapLatest { (repo, d) ->
-        combine(repo.daySummaries(d.minusDays(29), d), repo.sleep(d, d), repo.workouts(d.minusDays(6), d), repo.heartRate(d)) { sums, nights, workouts, hr ->
+        combine(repo.daySummaries(d.minusDays(29), d), repo.sleep(d, d), repo.workouts(d.minusDays(6), d), latestHeart(repo, d)) { sums, nights, workouts, hr ->
             val newest = sums.sortedByDescending { it.date }
             HubUi(
                 today = d,
                 latest = MetricKind.entries.mapNotNull { k -> newest.firstNotNullOfOrNull { s -> k.read(s)?.let { s.date to it } }?.let { k to it } }.toMap(),
-                latestBpm = hr.lastOrNull()?.bpm,
+                latestBpm = hr?.bpm,
                 sleepMinutes = nights.filter { it.isMainSleep }.maxOfOrNull { it.minutesAsleep }?.toInt(),
                 workouts7 = workouts.size,
             )
@@ -232,9 +242,25 @@ class DashboardViewModel(
             source.collectLatest { s ->
                 if (s.isSample) return@collectLatest
                 quietly { s.repo.refreshIfStale(OPEN_MAX_AGE) }
+                var looks = 0
+                var sinceToday = 0L
+                var again = 0
                 while (true) {
-                    delay(LIVE_INTERVAL_MS)
-                    quietly { s.repo.refreshToday() }
+                    // Closer together right after opening: the band often syncs then.
+                    val wait = if (looks++ < FIRST_LOOKS) FIRST_LOOK_MS else LOOK_MS
+                    delay(wait)
+                    sinceToday += wait
+                    var synced = false
+                    quietly { synced = s.repo.checkBand() }
+                    if (synced) {
+                        // Google may still be counting: look at the numbers again at the next looks.
+                        again = LOOK_AGAIN
+                        sinceToday = 0
+                    } else if (again > 0 || sinceToday >= LIVE_INTERVAL_MS) {
+                        again = (again - 1).coerceAtLeast(0)
+                        sinceToday = 0
+                        quietly { s.repo.refreshToday() }
+                    }
                 }
             }
         }
@@ -264,7 +290,13 @@ class DashboardViewModel(
         /** Opening Pulse starts a full sync if the last one is older than this. */
         val OPEN_MAX_AGE: Duration = Duration.ofMinutes(1)
 
-        /** How often today's numbers are updated while Pulse is on screen. */
+        /** How often Pulse asks whether the band has synced: at first quickly, then regularly. */
+        const val FIRST_LOOKS = 6
+        const val FIRST_LOOK_MS = 5_000L
+        const val LOOK_MS = 15_000L
+        const val LOOK_AGAIN = 2
+
+        /** How often today's numbers are updated anyway while Pulse is on screen. */
         const val LIVE_INTERVAL_MS = 90_000L
     }
 }

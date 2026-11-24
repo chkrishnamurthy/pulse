@@ -1,6 +1,7 @@
 package com.fitbittrack.pulse.data.remote
 
 import com.fitbittrack.pulse.domain.BandBattery
+import com.fitbittrack.pulse.domain.HeartRateSample
 import com.fitbittrack.pulse.domain.SleepSession
 import com.fitbittrack.pulse.domain.SleepStage
 import com.fitbittrack.pulse.domain.SleepStageType
@@ -193,6 +194,14 @@ object Parsers {
     /** RUNNING → Running, CARDIO_WORKOUT → Cardio workout. */
     fun prettyType(type: String): String =
         type.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+
+    /** The newest heart-rate reading in a list answer, whatever its order. */
+    fun newestHeart(dataPoints: List<JsonObject>): HeartRateSample? = dataPoints.mapNotNull { dp ->
+        val h = dp.obj("heartRate") ?: return@mapNotNull null
+        val at = h.obj("sampleTime")?.instant("physicalTime") ?: return@mapNotNull null
+        val bpm = h.num("beatsPerMinute")?.toInt()?.takeIf { it in 20..250 } ?: return@mapNotNull null
+        HeartRateSample(at, bpm)
+    }.maxByOrNull { it.time }
 
     /** Latest tracker sync time from pairedDevices (TRACKER devices preferred). */
     fun lastTrackerSync(devices: List<JsonObject>): Instant? {

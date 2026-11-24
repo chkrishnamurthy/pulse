@@ -57,9 +57,12 @@ import com.fitbittrack.pulse.MainViewModel
 import com.fitbittrack.pulse.UiState
 import com.fitbittrack.pulse.chat.CHAT_FILE
 import com.fitbittrack.pulse.chat.ChatData
+import android.widget.Toast
 import com.fitbittrack.pulse.chat.ChatPrefs
 import com.fitbittrack.pulse.chat.ChatStore
 import com.fitbittrack.pulse.chat.ChatViewModel
+import com.fitbittrack.pulse.direct.GoogleHealthApp
+import com.fitbittrack.pulse.direct.LiveState
 import com.fitbittrack.pulse.domain.HealthRepository
 import com.fitbittrack.pulse.ui.AirViewModel
 import com.fitbittrack.pulse.ui.DashboardViewModel
@@ -67,6 +70,7 @@ import com.fitbittrack.pulse.ui.DataLayerBridge
 import com.fitbittrack.pulse.ui.DirectViewModel
 import com.fitbittrack.pulse.ui.components.FitText
 import com.fitbittrack.pulse.ui.components.PulseIcons
+import com.fitbittrack.pulse.ui.model.HomeLive
 import com.fitbittrack.pulse.ui.model.MetricKind
 import com.fitbittrack.pulse.ui.model.ReportRange
 import com.fitbittrack.pulse.ui.model.Units
@@ -91,6 +95,7 @@ import com.fitbittrack.pulse.ui.screens.SyncScreen
 import com.fitbittrack.pulse.ui.screens.TodayScreen
 import com.fitbittrack.pulse.ui.screens.TrendsScreen
 import com.fitbittrack.pulse.ui.screens.YouScreen
+import com.fitbittrack.pulse.ui.screens.rememberNow
 import com.fitbittrack.pulse.ui.screens.KnowMeScreen
 import com.fitbittrack.pulse.ui.screens.RemindersScreen
 import com.fitbittrack.pulse.ui.screens.MyBandScreen
@@ -285,10 +290,24 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                 }
                 val airOn by air.enabled.collectAsStateWithLifecycle()
                 val airState by air.state.collectAsStateWithLifecycle()
+                if (!isSample) LifecycleStartEffect(direct) { direct.watchHeart(); onStopOrDispose { direct.unwatchHeart() } }
+                val liveSteps by direct.liveSteps.collectAsStateWithLifecycle()
+                val liveHeart by direct.live.collectAsStateWithLifecycle()
+                val lane by direct.laneData.collectAsStateWithLifecycle()
+                val canOpenHealth = remember { GoogleHealthApp.installed(context) }
+                val now = rememberNow()
                 today?.let {
                     TodayScreen(
                         today = it, prefs = state.prefs, sync = sync, isSample = isSample, contentPadding = padding, week = week,
                         lowBatteryAt = reminders.lowBatteryAt, airOn = airOn, air = airState,
+                        live = if (isSample) HomeLive() else HomeLive(
+                            steps = liveSteps?.takeIf { l -> l.day == it.date && l.added > 0 }?.steps,
+                            bandUpTo = listOfNotNull(sync.lastTrackerAt, lane?.newestSteps).maxOrNull(),
+                            bpm = (liveHeart as? LiveState.Live)?.bpmAt(now),
+                        ),
+                        onGetNewest = {
+                            if (GoogleHealthApp.open(context)) Toast.makeText(context, "Google Health is syncing your band. Come back in a few seconds.", Toast.LENGTH_LONG).show()
+                        }.takeIf { !isSample && canOpenHealth },
                         onRefresh = { dash.refresh(); air.refresh() },
                         onConnect = viewModel::connect,
                         onOpenSync = { nav.open(SyncRoute) },
@@ -372,9 +391,12 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
             }
             page<LiveHeartRoute> {
                 DisposableEffect(Unit) { barless++; onDispose { barless-- } }
+                LifecycleStartEffect(direct) { direct.watchHeart(); onStopOrDispose { direct.unwatchHeart() } }
                 val live by direct.live.collectAsStateWithLifecycle()
+                val onHome by direct.liveHeartOn.collectAsStateWithLifecycle()
                 LiveHeartScreen(
-                    state = live, contentPadding = padding,
+                    state = live, onHome = onHome, contentPadding = padding,
+                    onHomeChange = { direct.setLiveHeart(it) },
                     onBack = { nav.back() },
                     onSearch = direct::searchBand, onConnect = direct::connectBand, onStop = direct::stopBand,
                 )
@@ -486,9 +508,14 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                     fasterData = {
                         val lane by direct.laneStatus.collectAsStateWithLifecycle()
                         val data by direct.laneData.collectAsStateWithLifecycle()
+                        val stepsOn by direct.liveStepsOn.collectAsStateWithLifecycle()
+                        val heartOn by direct.liveHeartOn.collectAsStateWithLifecycle()
+                        val bandKnown by direct.bandKnown.collectAsStateWithLifecycle()
                         FasterDataCard(
                             status = lane, data = data, lastTrackerLabel = sync.lastTrackerLabel,
                             onSetHealthConnect = { direct.setHealthConnect(it) },
+                            stepSensor = direct.stepSensor, stepsOn = stepsOn, onLiveSteps = { direct.setLiveSteps(it); if (it) direct.retrySteps() },
+                            heartOn = heartOn, bandKnown = bandKnown, onLiveHeart = { direct.setLiveHeart(it) },
                             onOpenLiveHeart = { nav.open(LiveHeartRoute) },
                         )
                     },

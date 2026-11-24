@@ -25,6 +25,9 @@ class MergedHealthRepository(
     override fun heartRate(date: LocalDate): Flow<List<HeartRateSample>> =
         combine(cloud.heartRate(date), local) { c, l -> Lanes.mergeHeart(c, l, date) }.distinctUntilChanged()
 
+    override val newestHeart: Flow<HeartRateSample?> =
+        combine(cloud.newestHeart, local) { c, l -> Lanes.newer(c, l?.lastHeart) }.distinctUntilChanged()
+
     override suspend fun deleteAllLocalData() {
         clearLocal()
         cloud.deleteAllLocalData()
