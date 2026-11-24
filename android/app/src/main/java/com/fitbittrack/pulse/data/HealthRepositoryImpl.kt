@@ -55,6 +55,12 @@ class HealthRepositoryImpl(
             .map { it.toHourly() }
             .onStart { appScope.launch { engine.ensureDetail(date, SyncEngine.KIND_HOURLY) } }
 
+    override fun savedHeartRate(date: LocalDate): Flow<List<HeartRateSample>> =
+        dao.heartRate(date.toString()).map { rows -> rows.map { it.toDomain() } }
+
+    override fun savedHourlySteps(date: LocalDate): Flow<List<Long?>> =
+        dao.hourly(date.toString()).map { it.toHourly() }
+
     override fun sleep(from: LocalDate, to: LocalDate): Flow<List<SleepSession>> =
         dao.sleep(from.toString(), to.toString()).map { rows -> rows.map { it.toDomain() } }
 

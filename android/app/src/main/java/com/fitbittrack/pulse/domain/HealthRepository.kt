@@ -20,6 +20,10 @@ interface HealthRepository {
     /** 24 entries for local hours 0..23. null = no data for that hour yet. Fetched on demand for older days. */
     fun hourlySteps(date: LocalDate): Flow<List<Long?>>
 
+    /** [heartRate] and [hourlySteps] from what is already saved: never goes online (widgets). */
+    fun savedHeartRate(date: LocalDate): Flow<List<HeartRateSample>> = heartRate(date)
+    fun savedHourlySteps(date: LocalDate): Flow<List<Long?>> = hourlySteps(date)
+
     /** Sleep sessions whose wake-up day is in the range, oldest first. */
     fun sleep(from: LocalDate, to: LocalDate): Flow<List<SleepSession>>
 

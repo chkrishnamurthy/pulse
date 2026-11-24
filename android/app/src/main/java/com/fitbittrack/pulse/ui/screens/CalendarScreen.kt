@@ -50,7 +50,7 @@ import com.fitbittrack.pulse.ui.components.ProgressRing
 import com.fitbittrack.pulse.ui.components.PulseCard
 import com.fitbittrack.pulse.ui.components.PulseIcons
 import com.fitbittrack.pulse.ui.components.PulsePage
-import com.fitbittrack.pulse.ui.components.SampleBanner
+import com.fitbittrack.pulse.ui.components.SampleChip
 import com.fitbittrack.pulse.ui.components.TabHeader
 import com.fitbittrack.pulse.ui.components.TileRow
 import com.fitbittrack.pulse.ui.components.fill
@@ -103,9 +103,9 @@ fun CalendarScreen(
     val thisMonth = YearMonth.from(ui.today)
     PulsePage(contentPadding) {
         TabHeader("Calendar", "How often you reach your goals") {
+            if (isSample) SampleChip(onConnect)
             TextButton(onClick = onEditGoals) { Text("Edit goals") }
         }
-        if (isSample) SampleBanner(onConnect)
 
         ui.todayGoals?.let { TodayTargets(it, ui.allGoalsStreak, units) { onDay(ui.today) } }
 

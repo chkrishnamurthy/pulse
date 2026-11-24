@@ -7,7 +7,7 @@ import com.fitbittrack.pulse.ui.components.ListRow
 import com.fitbittrack.pulse.ui.components.PulseIcons
 import com.fitbittrack.pulse.ui.components.PulsePage
 import com.fitbittrack.pulse.ui.components.RowGroup
-import com.fitbittrack.pulse.ui.components.SampleBanner
+import com.fitbittrack.pulse.ui.components.SampleChip
 import com.fitbittrack.pulse.ui.components.SectionTitle
 import com.fitbittrack.pulse.ui.components.TabHeader
 import com.fitbittrack.pulse.ui.components.label
@@ -43,8 +43,7 @@ fun HealthScreen(
         )
     }
     PulsePage(contentPadding) {
-        TabHeader("Health", "Everything your band records")
-        if (isSample) SampleBanner(onConnect)
+        TabHeader("Health", "Everything your band records") { if (isSample) SampleChip(onConnect) }
 
         SectionTitle("Activity")
         RowGroup(listOf(

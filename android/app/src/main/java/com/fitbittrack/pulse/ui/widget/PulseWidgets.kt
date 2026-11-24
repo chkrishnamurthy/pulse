@@ -42,6 +42,7 @@ import androidx.glance.text.TextStyle
 import com.fitbittrack.pulse.MainActivity
 import com.fitbittrack.pulse.ui.DataLayerBridge
 import com.fitbittrack.pulse.ui.format.Fmt
+import com.fitbittrack.pulse.ui.widget.art.ArtWidgets
 
 /*
  * Home-screen widgets, built with Jetpack Glance. Each one is resizable and picks a layout for its size.
@@ -56,6 +57,7 @@ object PulseWidgets {
         HeartWidget().updateAll(context)
         SleepWidget().updateAll(context)
         SyncWidget().updateAll(context)
+        ArtWidgets.refreshAll(context)
     }
 }
 

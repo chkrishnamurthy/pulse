@@ -5,4 +5,10 @@
     <string name="widget_heart_desc">Resting heart rate with a 7-day trend</string>
     <string name="widget_sleep_desc">Last night\'s sleep and stages</string>
     <string name="widget_sync_desc">When Pulse last synced</string>
+    <string name="widget_art_tiny_desc">Steps, heart, sleep or sync in one small square</string>
+    <string name="widget_art_pill_desc">Step wave or band battery</string>
+    <string name="widget_art_square_desc">Bloom, Pip, Sleep Moon, Flame and more</string>
+    <string name="widget_art_strip_desc">Ask Pulse, Road, Race Yesterday and more</string>
+    <string name="widget_art_wide_desc">Living Sky, Summit Trail, Deep Dive and more</string>
+    <string name="widget_art_large_desc">Orbit or Shape Poster</string>
 </resources>

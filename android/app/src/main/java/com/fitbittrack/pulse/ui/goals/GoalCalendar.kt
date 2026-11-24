@@ -73,6 +73,9 @@ object GoalCalendar {
     /** The goals shown as rings on Today. */
     val TODAY = setOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories, GoalMetric.Zone)
 
+    /** The goals in the circle on Today until the user picks others. */
+    val CIRCLE = setOf(GoalMetric.Steps, GoalMetric.Calories)
+
     /** The targets that applied on [date]: the newest change on or before it, else the oldest known. */
     fun goalsOn(history: List<DatedGoals>, date: LocalDate): Goals {
         val sorted = history.sortedBy { it.from }

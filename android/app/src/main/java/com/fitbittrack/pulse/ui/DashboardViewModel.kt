@@ -113,8 +113,9 @@ class DashboardViewModel(
             repo.sleep(d, d),
             repo.goals,
             clock,
-        ) { (day, last30, hourly), nights, goals, t ->
-            Mappers.today(d, day, last30, hourly, nights.lastOrNull { it.isMainSleep }, goals, t.toLocalTime())
+            repo.heartRate(d),
+        ) { (day, last30, hourly), nights, goals, t, hr ->
+            Mappers.today(d, day, last30, hourly, nights.lastOrNull { it.isMainSleep }, goals, t.toLocalTime(), hr.lastOrNull())
         }
     }.state(null)
 

@@ -1,5 +1,6 @@
 package com.fitbittrack.pulse
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,13 +16,24 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitbittrack.pulse.ui.navigation.PulseApp
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 import com.fitbittrack.pulse.ui.theme.ThemeMode
+import com.fitbittrack.pulse.ui.widget.art.WidgetOpen
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
+    /** The page a home-screen widget asked for, until it has been opened. */
+    private val widgetOpen = MutableStateFlow<WidgetOpen?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        WidgetOpen.from(intent)?.let { widgetOpen.value = it }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) widgetOpen.value = WidgetOpen.from(intent)
         enableEdgeToEdge()
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
@@ -40,7 +52,8 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             PulseTheme(mode = state.themeMode) {
-                PulseApp(state = state, viewModel = viewModel)
+                val open by widgetOpen.collectAsStateWithLifecycle()
+                PulseApp(state = state, viewModel = viewModel, widgetOpen = open, onWidgetOpened = { widgetOpen.value = null })
             }
         }
     }

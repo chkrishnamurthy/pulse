@@ -18,8 +18,13 @@
     <!-- Android 11 and older only: a Bluetooth search needs these there. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+
+    <!-- Air quality near you: rough location only, only while Pulse is open. Asked only when the user switches it on. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -84,6 +89,35 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_sync" />
         </receiver>
+
+        <!-- Drawn widgets: one receiver per size, the picture is chosen in the set-up page. -->
+        <receiver android:name=".ui.widget.art.TinyArtReceiver" android:exported="false" android:label="Pulse picture 1 × 1">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_tiny" />
+        </receiver>
+        <receiver android:name=".ui.widget.art.PillArtReceiver" android:exported="false" android:label="Pulse picture 2 × 1">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_pill" />
+        </receiver>
+        <receiver android:name=".ui.widget.art.SquareArtReceiver" android:exported="false" android:label="Pulse picture 2 × 2">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_square" />
+        </receiver>
+        <receiver android:name=".ui.widget.art.StripArtReceiver" android:exported="false" android:label="Pulse picture 4 × 1">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_strip" />
+        </receiver>
+        <receiver android:name=".ui.widget.art.WideArtReceiver" android:exported="false" android:label="Pulse picture 4 × 2">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_wide" />
+        </receiver>
+        <receiver android:name=".ui.widget.art.LargeArtReceiver" android:exported="false" android:label="Pulse picture 4 × 4">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_art_large" />
+        </receiver>
+        <activity android:name=".WidgetConfigActivity" android:exported="true" android:label="Pulse widget">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
     </application>
 
 </manifest>

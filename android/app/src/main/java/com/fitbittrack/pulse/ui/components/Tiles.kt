@@ -16,12 +16,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -148,24 +148,23 @@ fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect:
     }
 }
 
-/** Shown on tab pages while they draw sample numbers instead of the user's data. */
+/** A small word in the title row while a page draws sample numbers. Tapping it connects a Google account. */
 @Composable
-fun SampleBanner(onConnect: (() -> Unit)? = null) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+fun SampleChip(onConnect: () -> Unit) {
+    Box(
+        Modifier
             .heightIn(min = 48.dp)
-            .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "Connect Google account", onClick = onConnect)
+            .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
-            "Sample data",
-            style = MaterialTheme.typography.bodyMedium,
+            "Sample",
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape).padding(horizontal = 10.dp, vertical = 4.dp),
         )
-        if (onConnect != null) TextButton(onClick = onConnect) { Text("Connect Google") }
     }
 }

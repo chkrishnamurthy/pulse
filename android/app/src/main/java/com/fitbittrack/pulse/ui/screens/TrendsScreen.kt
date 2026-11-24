@@ -13,7 +13,7 @@ import com.fitbittrack.pulse.ui.components.LineChart
 import com.fitbittrack.pulse.ui.components.MetricTile
 import com.fitbittrack.pulse.ui.components.PulseCard
 import com.fitbittrack.pulse.ui.components.PulsePage
-import com.fitbittrack.pulse.ui.components.SampleBanner
+import com.fitbittrack.pulse.ui.components.SampleChip
 import com.fitbittrack.pulse.ui.components.Segmented
 import com.fitbittrack.pulse.ui.components.TabHeader
 import com.fitbittrack.pulse.ui.components.TileRow
@@ -54,8 +54,7 @@ fun TrendsScreen(
     val dayFmt = DateTimeFormatter.ofPattern("EEE d MMM", locale)
 
     PulsePage(contentPadding) {
-        TabHeader("Trends", period)
-        if (isSample) SampleBanner(onConnect)
+        TabHeader("Trends", period) { if (isSample) SampleChip(onConnect) }
         Segmented(ReportRange.entries, range, { it.label }, onRangeChange)
 
         PulseCard {

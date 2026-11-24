@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,6 +52,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.fitbittrack.pulse.AuthState
+import com.fitbittrack.pulse.ConfigSaver
 import com.fitbittrack.pulse.MainViewModel
 import com.fitbittrack.pulse.UiState
 import com.fitbittrack.pulse.chat.CHAT_FILE
@@ -59,6 +61,7 @@ import com.fitbittrack.pulse.chat.ChatPrefs
 import com.fitbittrack.pulse.chat.ChatStore
 import com.fitbittrack.pulse.chat.ChatViewModel
 import com.fitbittrack.pulse.domain.HealthRepository
+import com.fitbittrack.pulse.ui.AirViewModel
 import com.fitbittrack.pulse.ui.DashboardViewModel
 import com.fitbittrack.pulse.ui.DataLayerBridge
 import com.fitbittrack.pulse.ui.DirectViewModel
@@ -69,6 +72,8 @@ import com.fitbittrack.pulse.ui.model.ReportRange
 import com.fitbittrack.pulse.ui.model.Units
 import com.fitbittrack.pulse.ui.prefs.UiPrefsStore
 import com.fitbittrack.pulse.ui.screens.ActivityScreen
+import com.fitbittrack.pulse.ui.model.TodayCard
+import com.fitbittrack.pulse.ui.screens.AirScreen
 import com.fitbittrack.pulse.ui.screens.CalendarScreen
 import com.fitbittrack.pulse.ui.screens.ChatScreen
 import com.fitbittrack.pulse.ui.screens.ChatSettingsScreen
@@ -93,6 +98,14 @@ import com.fitbittrack.pulse.reminders.ReminderPrefs
 import com.fitbittrack.pulse.reminders.Reminders
 import com.fitbittrack.pulse.ui.screens.CalendarGoalsScreen
 import com.fitbittrack.pulse.ui.model.PersonalPrefs
+import com.fitbittrack.pulse.ui.screens.WidgetGalleryScreen
+import com.fitbittrack.pulse.ui.screens.WidgetSetupScreen
+import com.fitbittrack.pulse.ui.widget.art.ArtWidgets
+import com.fitbittrack.pulse.ui.widget.art.WidgetConfig
+import com.fitbittrack.pulse.ui.widget.art.WidgetDesign
+import com.fitbittrack.pulse.ui.widget.art.WidgetOpen
+import com.fitbittrack.pulse.ui.widget.art.WidgetStore
+import com.fitbittrack.pulse.ui.widget.art.WidgetTap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -113,7 +126,7 @@ private val tabs = listOf(
 )
 
 @Composable
-fun PulseApp(state: UiState, viewModel: MainViewModel) {
+fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? = null, onWidgetOpened: () -> Unit = {}) {
     // Wait until we know whether an account was connected before, so Connect never flashes.
     if (state.auth is AuthState.Checking) {
         Loading(PaddingValues())
@@ -124,6 +137,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
     val context = LocalContext.current
     val dash: DashboardViewModel = viewModel()
     val direct: DirectViewModel = viewModel()
+    val air: AirViewModel = viewModel()
     val signedIn = state.auth is AuthState.SignedIn
 
     // Real (cached) data whenever an account is connected, even offline; sample data otherwise.
@@ -197,6 +211,22 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
     val openMetric: (MetricKind) -> Unit = { nav.open(MetricRoute(it.name)) }
     val openDay: (LocalDate) -> Unit = { nav.open(DayRoute(it.toEpochDay())) }
 
+    // A tap on a home-screen widget. Before an account is connected there is nothing to open.
+    LaunchedEffect(widgetOpen, destination != null) {
+        if (widgetOpen == null || destination == null) return@LaunchedEffect
+        onWidgetOpened()
+        if (destination.hasRoute<ConnectRoute>()) return@LaunchedEffect
+        nav.openTab(TodayRoute)
+        when (widgetOpen.tap) {
+            WidgetTap.Today -> Unit
+            WidgetTap.Goals -> nav.openTab(CalendarRoute)
+            WidgetTap.Sleep -> nav.open(SleepRoute)
+            WidgetTap.Heart -> nav.open(HeartRoute)
+            WidgetTap.Trends -> nav.openTab(TrendsRoute)
+            WidgetTap.Ask -> nav.open(ChatRoute(widgetOpen.question))
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -249,17 +279,26 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             page<TodayRoute> {
                 val today by dash.todayUi.collectAsStateWithLifecycle()
                 val week by dash.weekGoals.collectAsStateWithLifecycle()
+                // Location is used only while Today shows the air card.
+                if (state.prefs.todayCards.any { (card, on) -> card == TodayCard.Air && on }) {
+                    LifecycleStartEffect(air) { air.start(); onStopOrDispose { air.stop() } }
+                }
+                val airOn by air.enabled.collectAsStateWithLifecycle()
+                val airState by air.state.collectAsStateWithLifecycle()
                 today?.let {
                     TodayScreen(
                         today = it, prefs = state.prefs, sync = sync, isSample = isSample, contentPadding = padding, week = week,
-                        onRefresh = dash::refresh,
+                        lowBatteryAt = reminders.lowBatteryAt, airOn = airOn, air = airState,
+                        onRefresh = { dash.refresh(); air.refresh() },
                         onConnect = viewModel::connect,
                         onOpenSync = { nav.open(SyncRoute) },
-                        onCustomize = { nav.open(CustomizeRoute) },
                         onCalendar = { nav.openTab(CalendarRoute) },
                         onDay = openDay,
                         onMetric = openMetric,
                         onOpenSleep = { nav.open(SleepRoute) },
+                        onOpenHeart = { nav.open(HeartRoute) },
+                        onOpenBand = { nav.open(MyBandRoute) },
+                        onOpenAir = { nav.open(AirRoute) },
                         onAsk = ask,
                     )
                 } ?: Loading(padding)
@@ -303,7 +342,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
                     onKnowMe = { nav.open(KnowMeRoute) }, onCalendarGoals = { nav.open(CalendarGoalsRoute) },
                     calendarGoalsLabel = personal.calendarGoals.sortedBy { it.ordinal }.joinToString(", ") { it.label },
                     onGoals = { nav.open(GoalsRoute) }, onCustomize = { nav.open(CustomizeRoute) }, onSync = { nav.open(SyncRoute) },
-                    onChat = { nav.open(ChatSettingsRoute) },
+                    onChat = { nav.open(ChatSettingsRoute) }, onWidgets = { nav.open(WidgetsRoute) },
                     onThemeChange = { viewModel.setTheme(it) }, onPrefsChange = { viewModel.setPrefs(it) },
                 )
             }
@@ -351,6 +390,12 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             page<GoalsRoute> {
                 GoalsScreen(goals = goals, units = state.prefs.units, contentPadding = padding, onBack = { nav.back() }, onGoalsChange = { dash.setGoals(it) })
             }
+            page<AirRoute> {
+                LifecycleStartEffect(air) { air.start(); onStopOrDispose { air.stop() } }
+                val airOn by air.enabled.collectAsStateWithLifecycle()
+                val airState by air.state.collectAsStateWithLifecycle()
+                airOn?.let { AirScreen(it, airState, state.prefs.units, padding, onBack = { nav.back() }, onEnable = air::setEnabled, onRefresh = air::refresh) }
+            }
             page<RemindersRoute> {
                 RemindersScreen(reminders, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setReminders(it) } }
             }
@@ -365,6 +410,42 @@ fun PulseApp(state: UiState, viewModel: MainViewModel) {
             }
             page<CustomizeRoute> {
                 CustomizeScreen(prefs = state.prefs, contentPadding = padding, onBack = { nav.back() }, onPrefsChange = { viewModel.setPrefs(it) })
+            }
+            page<WidgetsRoute> {
+                // Read again each time the page comes back: a widget may have been added or removed meanwhile.
+                var placed by remember { mutableStateOf(ArtWidgets.placed(context)) }
+                LifecycleResumeEffect(Unit) { placed = ArtWidgets.placed(context); onPauseOrDispose {} }
+                WidgetGalleryScreen(placed, padding, onBack = { nav.back() }, onPick = { nav.open(WidgetSetupRoute(design = it.name)) }, onEdit = { nav.open(WidgetSetupRoute(id = it)) })
+            }
+            page<WidgetSetupRoute> { entry ->
+                val route = entry.toRoute<WidgetSetupRoute>()
+                val store = remember { WidgetStore(context) }
+                val saved = remember { if (route.id != 0) store.saved(route.id) else null }
+                var config by rememberSaveable(stateSaver = ConfigSaver) { mutableStateOf(saved ?: WidgetConfig(WidgetDesign.named(route.design) ?: WidgetDesign.Bloom)) }
+                var note by rememberSaveable { mutableStateOf<String?>(null) }
+                // Placed: show it at once. The home screen places a widget only when it is open, and Google's own
+                // one can crash on a long queue of widgets that wait for that.
+                var before by rememberSaveable { mutableIntStateOf(-1) }
+                LifecycleResumeEffect(Unit) {
+                    if (before in 0 until ArtWidgets.count(context)) { before = -1; note = "Added to your home screen."; ArtWidgets.showHome(context) }
+                    onPauseOrDispose {}
+                }
+                WidgetSetupScreen(
+                    config = config, choices = if (saved != null) WidgetDesign.bySize(saved.design.size) else emptyList(), contentPadding = padding,
+                    action = if (saved != null) "Save" else "Add to home screen", note = note,
+                    onBack = { nav.back() }, onChange = { config = it; note = null },
+                    onAction = { data ->
+                        if (saved != null) {
+                            store.save(route.id, config)
+                            chatScope.launch { ArtWidgets.refreshAll(context.applicationContext) }
+                            nav.back()
+                        } else if (ArtWidgets.pin(context, config, data)) {
+                            before = ArtWidgets.count(context)
+                        } else {
+                            note = "Your home screen can't add it from here. Hold an empty spot on it, choose Widgets, then Pulse."
+                        }
+                    },
+                )
             }
             page<ChatRoute> { entry ->
                 DisposableEffect(Unit) { barless++; onDispose { barless-- } }

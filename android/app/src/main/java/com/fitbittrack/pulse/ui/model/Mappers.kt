@@ -34,6 +34,7 @@ object Mappers {
         lastNight: SleepSession?,
         goals: Goals,
         now: LocalTime,
+        latest: HeartRateSample? = null,
     ): TodayUi {
         val last7 = (6 downTo 0).map { back -> last30.firstOrNull { it.date == date.minusDays(back.toLong()) }?.restingHeartRate }
         return TodayUi(
@@ -50,6 +51,7 @@ object Mappers {
             restingHeartRateLast7 = last7,
             hrvMs = day?.hrvMs,
             spo2Percent = day?.spo2Percent,
+            respiratoryRate = day?.respiratoryRate,
             sleepMinutes = lastNight?.minutesAsleep?.toInt(),
             sleepShares = lastNight?.let { shares(it) },
             stepsPerHour = hourly,
@@ -57,6 +59,8 @@ object Mappers {
             sleepEnd = lastNight?.end?.local(),
             now = now,
             insight = insight(day, last30, lastNight, goals),
+            latestBpm = latest?.bpm,
+            latestBpmAt = latest?.time?.local(),
         )
     }
 

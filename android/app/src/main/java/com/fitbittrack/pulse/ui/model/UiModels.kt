@@ -12,15 +12,13 @@ import java.time.LocalTime
 enum class Units { Metric, Imperial }
 
 /** Which cards appear on Today, in order. Saved as a UI preference. */
-enum class TodayCard(val label: String) {
-    Dial("Day dial"),
-    RestingHeart("Resting heart rate"),
-    Sleep("Sleep"),
-    ZoneMinutes("Zone minutes"),
-    CaloriesDistance("Calories and distance"),
-    Spo2("SpO2"),
-    Hrv("HRV"),
-    Floors("Floors"),
+enum class TodayCard(val label: String, val about: String) {
+    Ring("Day circle", "Circle, goals and heart rate"),
+    Band("Fitbit battery", "Percent at the last sync"),
+    Air("Air outside", "Air quality near you"),
+    Week("Last 7 days", "Your calendar goals"),
+    Tip("Tip of the day", "One useful finding"),
+    Body("Body numbers", "Heart, oxygen, distance and more"),
 }
 
 /** What the user told Pulse about themselves. */
@@ -38,7 +36,9 @@ data class PersonalPrefs(
 
 data class UiPrefs(
     val units: Units = Units.Metric,
-    val todayCards: List<Pair<TodayCard, Boolean>> = TodayCard.entries.map { it to (it != TodayCard.Floors) },
+    val todayCards: List<Pair<TodayCard, Boolean>> = TodayCard.entries.map { it to true },
+    /** The goals in the circle on Today. At least one. */
+    val ringGoals: Set<com.fitbittrack.pulse.ui.goals.GoalMetric> = com.fitbittrack.pulse.ui.goals.GoalCalendar.CIRCLE,
 )
 
 /** Share of the night in each stage, 0..1. */
@@ -60,6 +60,7 @@ data class TodayUi(
     val restingHeartRateLast7: List<Int?>,
     val hrvMs: Double?,
     val spo2Percent: Double?,
+    val respiratoryRate: Double? = null,
     val sleepMinutes: Int?,
     val sleepShares: StageShares?,
     /** 24 values, null = no data for that hour yet. Empty list = not available. */
@@ -68,6 +69,9 @@ data class TodayUi(
     val sleepEnd: LocalTime?,
     val now: LocalTime,
     val insight: Insight?,
+    /** Newest heart rate of today, and when it was measured. */
+    val latestBpm: Int? = null,
+    val latestBpmAt: LocalTime? = null,
 )
 
 enum class Range(val label: String, val days: Int) { Day("Day", 1), Week("Week", 7), Month("Month", 30) }

@@ -20,7 +20,11 @@ import kotlinx.serialization.Serializable
 @Serializable data object CalendarGoalsRoute
 @Serializable data object CustomizeRoute
 @Serializable data object SyncRoute
+@Serializable data object AirRoute
 @Serializable data class ChatRoute(val question: String? = null)
 @Serializable data object ChatSettingsRoute
+@Serializable data object WidgetsRoute
+/** [id] = a widget already on the home screen; otherwise a new one of [design]. */
+@Serializable data class WidgetSetupRoute(val design: String? = null, val id: Int = 0)
 @Serializable data class DayRoute(val epochDay: Long)
 @Serializable data class MetricRoute(val kind: String)

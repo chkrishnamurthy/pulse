@@ -1,9 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
+// Optional, in local.properties (never committed): waqi.key=...  Without it, Pulse uses the area estimate.
+val waqiKey: String = providers.fileContents(rootProject.layout.projectDirectory.file("local.properties")).asText.orNull
+    ?.let { text -> Properties().apply { load(text.reader()) }.getProperty("waqi.key") }
+    .orEmpty().filter { it.isLetterOrDigit() }
 
 android {
     namespace = "com.fitbittrack.pulse"
@@ -16,6 +23,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "WAQI_KEY", "\"$waqiKey\"")
     }
 
     buildTypes {
@@ -33,6 +41,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

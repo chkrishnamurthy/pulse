@@ -27,10 +27,13 @@ import com.fitbittrack.pulse.ui.components.DetailPage
 import com.fitbittrack.pulse.ui.components.IconBadge
 import com.fitbittrack.pulse.ui.components.PulseIcons
 import com.fitbittrack.pulse.ui.components.RowGroup
+import com.fitbittrack.pulse.ui.components.SectionTitle
+import com.fitbittrack.pulse.ui.components.fill
 import com.fitbittrack.pulse.ui.components.icon
 import com.fitbittrack.pulse.ui.components.label
 import com.fitbittrack.pulse.ui.components.tone
 import com.fitbittrack.pulse.ui.format.Fmt
+import com.fitbittrack.pulse.ui.goals.GoalCalendar
 import com.fitbittrack.pulse.ui.goals.GoalMetric
 import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.model.UiPrefs
@@ -85,12 +88,15 @@ private fun GoalStepper(metric: GoalMetric, label: String, value: String, now: I
 fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () -> Unit, onPrefsChange: (UiPrefs) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     DetailPage("Today screen", contentPadding, onBack) {
-        Text("Your goals and the week are always shown. Choose the rest here.", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+        Text("Show, hide or move the cards on your home.", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
         RowGroup(prefs.todayCards.mapIndexed { i, (card, on) ->
             {
                 Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(10.dp).background(cardColor(card), CircleShape))
-                    Text(card.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    Column(Modifier.weight(1f).padding(start = 12.dp, top = 8.dp, bottom = 8.dp)) {
+                        Text(card.label, style = MaterialTheme.typography.titleSmall)
+                        Text(card.about, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                    }
                     IconButton(onClick = { onPrefsChange(prefs.copy(todayCards = prefs.todayCards.move(i, i - 1))) }, enabled = i > 0) {
                         Icon(PulseIcons.Up, contentDescription = "Move ${card.label} up", modifier = Modifier.size(20.dp))
                     }
@@ -105,6 +111,23 @@ fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () ->
                 }
             }
         }, dividerInset = 38)
+        SectionTitle("Goals in the circle")
+        RowGroup(GoalMetric.entries.filter { it in GoalCalendar.TODAY }.map { m ->
+            {
+                val on = m in prefs.ringGoals
+                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(PulseTheme.colors.fill(m.tone), CircleShape))
+                    Text(m.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                    Switch(
+                        checked = on,
+                        // The last goal stays: an empty circle would say nothing.
+                        enabled = !on || prefs.ringGoals.size > 1,
+                        onCheckedChange = { v -> onPrefsChange(prefs.copy(ringGoals = if (v) prefs.ringGoals + m else prefs.ringGoals - m)) },
+                        modifier = Modifier.semantics { contentDescription = "Show ${m.label} in the circle" },
+                    )
+                }
+            }
+        }, dividerInset = 38)
     }
 }
 
@@ -112,12 +135,10 @@ fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () ->
 private fun cardColor(card: TodayCard): androidx.compose.ui.graphics.Color {
     val c = PulseTheme.colors
     return when (card) {
-        TodayCard.Dial -> c.move
-        TodayCard.RestingHeart, TodayCard.Hrv -> c.heart
-        TodayCard.Sleep -> c.sleep
-        TodayCard.Spo2, TodayCard.Floors -> c.body
-        TodayCard.ZoneMinutes -> c.active
-        TodayCard.CaloriesDistance -> c.energy
+        TodayCard.Ring -> c.move
+        TodayCard.Band, TodayCard.Air, TodayCard.Body -> c.body
+        TodayCard.Week -> c.energy
+        TodayCard.Tip -> c.good
     }
 }
 

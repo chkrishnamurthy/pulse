@@ -61,6 +61,7 @@ fun YouScreen(
     onCustomize: () -> Unit,
     onSync: () -> Unit,
     onChat: () -> Unit,
+    onWidgets: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onPrefsChange: (UiPrefs) -> Unit,
 ) {
@@ -93,7 +94,8 @@ fun YouScreen(
             add { ListRow(PulseIcons.Heart, c.heartLabel, "My band", sync.batteryPercent?.let { "Battery $it%" } ?: "Battery, sync and alerts", onClick = onBand) }
             add { ListRow(PulseIcons.Calendar, c.activeLabel, "Calendar goals", calendarGoalsLabel, onClick = onCalendarGoals) }
             add { ListRow(PulseIcons.Target, c.moveLabel, "Goals", "Steps, calories, sleep and more", onClick = onGoals) }
-            add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Choose and order your cards", onClick = onCustomize) }
+            add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Cards, and goals in the circle", onClick = onCustomize) }
+            add { ListRow(PulseIcons.Layout, c.energyLabel, "Widgets", "Pictures of your day for the home screen", onClick = onWidgets) }
             add { ListRow(PulseIcons.Chat, c.bodyLabel, "Ask Pulse", "What chat may read, your chats", onClick = onChat) }
             if (signedIn && !isSample) add {
                 ListRow(PulseIcons.Sync, if (sync.error != null) scheme.error else c.good, "Sync and data", if (sync.needsSignIn) "Sign in again" else if (sync.error != null) "Sync problem" else sync.lastSuccessLabel, onClick = onSync)
