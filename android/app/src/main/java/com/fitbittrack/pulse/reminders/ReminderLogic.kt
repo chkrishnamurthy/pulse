@@ -26,6 +26,11 @@ data class ReminderPrefs(
 ) {
     val anyTimed: Boolean get() = eveningOn || bedtimeOn || morningOn
     val anyBand: Boolean get() = lowBatteryOn || staleOn
+
+    /** The timed reminders that are on, for a settings row: "Evening, Morning" or "All off". */
+    val timedSummary: String
+        get() = listOfNotNull("Evening".takeIf { eveningOn }, "Bedtime".takeIf { bedtimeOn }, "Morning".takeIf { morningOn })
+            .ifEmpty { listOf("All off") }.joinToString(", ")
 }
 
 enum class ReminderKind { Evening, Bedtime, Morning }

@@ -34,6 +34,8 @@ class ChatViewModel(
     private val prefs: suspend () -> ChatPrefs,
     private val store: ChatStore,
     private val today: () -> LocalDate = { LocalDate.now() },
+    /** Answers about lifting and the training plan, or null when the question is about something else. */
+    private val training: suspend (String, LocalDate) -> Answer? = { _, _ -> null },
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatState())
@@ -76,7 +78,10 @@ class ChatViewModel(
     private suspend fun reply(q: String) {
         val day = today()
         val p = prefs()
-        when (val route = QuestionRouter.route(q, day)) {
+        val route = QuestionRouter.route(q, day)
+        // Emergencies and medical questions always come first.
+        if ((route is Route.Data || route == Route.OffTopic) && Area.Activity in p.areas) training(q, day)?.let { return answer(q, it, p) }
+        when (route) {
             is Route.Emergency -> notice(
                 q, ChatItem.Notice.Kind.Emergency,
                 if (route.crisis) "You don't have to be alone with this" else "Please get medical help",
@@ -89,7 +94,7 @@ class ChatViewModel(
             )
             Route.OffTopic -> notice(
                 q, ChatItem.Notice.Kind.Plain, "I can help with your own data",
-                "I only know the health and fitness data in Pulse. Try asking about sleep, steps, calories, distance, heart rate or workouts.",
+                "I only know the health and fitness data in Pulse. Try asking about sleep, steps, calories, distance, heart rate, workouts or your lifts.",
             )
             is Route.Data ->
                 if (route.topic.area !in p.areas) notice(

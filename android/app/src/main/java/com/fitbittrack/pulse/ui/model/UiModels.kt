@@ -1,5 +1,7 @@
 package com.fitbittrack.pulse.ui.model
 
+import com.fitbittrack.pulse.ui.goals.GoalCalendar
+import com.fitbittrack.pulse.ui.goals.GoalMetric
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -14,7 +16,8 @@ enum class Units { Metric, Imperial }
 
 /** Which cards appear on Today, in order. Saved as a UI preference. */
 enum class TodayCard(val label: String, val about: String) {
-    Ring("Day circle", "Circle, goals and heart rate"),
+    Ring("Steps and goals", "Steps, goals and heart rate"),
+    Train("Training", "Your next workout"),
     Band("Fitbit battery", "Percent at the last sync"),
     Air("Air outside", "Air quality near you"),
     Week("Last 7 days", "Your calendar goals"),
@@ -25,7 +28,7 @@ enum class TodayCard(val label: String, val about: String) {
 /** What the user told Pulse about themselves. */
 data class PersonalPrefs(
     /** The goals a calendar day needs to be green. At least one. */
-    val calendarGoals: Set<com.fitbittrack.pulse.ui.goals.GoalMetric> = com.fitbittrack.pulse.ui.goals.GoalCalendar.CORE,
+    val calendarGoals: Set<GoalMetric> = GoalCalendar.CORE,
     val age: Int? = null,
     /** Chosen by the user. Null = worked out from age. */
     val topHeartRate: Int? = null,
@@ -38,8 +41,8 @@ data class PersonalPrefs(
 data class UiPrefs(
     val units: Units = Units.Metric,
     val todayCards: List<Pair<TodayCard, Boolean>> = TodayCard.entries.map { it to true },
-    /** The goals in the circle on Today. At least one. */
-    val ringGoals: Set<com.fitbittrack.pulse.ui.goals.GoalMetric> = com.fitbittrack.pulse.ui.goals.GoalCalendar.CIRCLE,
+    /** Extra goals listed on Today (besides sleep and calories). Kept non-empty: Steps is always in it. */
+    val ringGoals: Set<GoalMetric> = GoalCalendar.CIRCLE,
 )
 
 /** Share of the night in each stage, 0..1. */
@@ -139,6 +142,8 @@ data class WorkoutUi(
     val distanceMeters: Double?,
     val avgHeartRate: Int?,
     val caloriesKcal: Double?,
+    val startMs: Long = 0,
+    val endMs: Long = 0,
 )
 
 data class ActivityUi(

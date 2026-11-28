@@ -57,6 +57,7 @@ object PulseWidgets {
         HeartWidget().updateAll(context)
         SleepWidget().updateAll(context)
         SyncWidget().updateAll(context)
+        TrainWidget().updateAll(context)
         ArtWidgets.refreshAll(context)
     }
 }

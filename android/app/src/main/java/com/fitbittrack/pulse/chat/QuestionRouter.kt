@@ -27,6 +27,7 @@ enum class Topic(val area: Area, val label: String) {
     Breathing(Area.Body, "breathing rate"),
     SkinTemp(Area.Body, "skin temperature"),
     Overview(Area.Activity, "week"),
+    Strength(Area.Activity, "training"),
 }
 
 enum class Want { Summary, Left, Goal, Best, Worst, Compare }

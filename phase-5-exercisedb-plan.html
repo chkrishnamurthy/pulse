@@ -1,0 +1,222 @@
+<title>Pulse Exercise Animations Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: one wide column at 90% of the screen; cards in auto-fit grids; diagrams as flex rows that wrap on phones. */
+:root{
+  --bg:#F3F5F8; --card:#FFFFFF; --ink:#111827; --sub:#556070; --line:#DCE2EA;
+  --green:#2F7A12; --greenbg:#E5F1DA; --blue:#3446C4; --bluebg:#E4E8FB;
+  --amber:#9A5A00; --amberbg:#FBEED8; --red:#B3263F; --redbg:#FBE3E7;
+  --display:"Space Grotesk",Inter,system-ui,sans-serif; --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1118; --card:#151C27; --ink:#ECF0F6; --sub:#9AA6B8; --line:#263142;
+  --green:#9ED36A; --greenbg:#1B2A14; --blue:#9AA8FF; --bluebg:#1C2340;
+  --amber:#F2B35A; --amberbg:#2E2210; --red:#FF8FA2; --redbg:#36161D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1118; --card:#151C27; --ink:#ECF0F6; --sub:#9AA6B8; --line:#263142;
+  --green:#9ED36A; --greenbg:#1B2A14; --blue:#9AA8FF; --bluebg:#1C2340;
+  --amber:#F2B35A; --amberbg:#2E2210; --red:#FF8FA2; --redbg:#36161D; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
+.wrap{width:90%;max-width:1700px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4vw,44px);line-height:1.1}
+h2{font-size:clamp(22px,2.4vw,28px)}
+h3{font-size:18px}
+p{margin:0;max-width:75ch}
+.sub{color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.grid3{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.stat{display:flex;flex-direction:column;gap:4px}
+.stat b{font-family:var(--display);font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;border-radius:999px;padding:4px 12px;width:max-content}
+.ok{background:var(--greenbg);color:var(--green)} .info{background:var(--bluebg);color:var(--blue)} .warn{background:var(--amberbg);color:var(--amber)} .no{background:var(--redbg);color:var(--red)}
+.hero{display:flex;flex-direction:column;gap:14px}
+.verdict{display:flex;gap:14px;align-items:flex-start;background:var(--greenbg);border-radius:18px;padding:18px 20px}
+.verdict svg{flex:none}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--sub);font-weight:600}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl{overflow-x:auto}
+/* flow diagrams */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.node{flex:1 1 170px;min-width:150px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.node.a{border-color:var(--blue)} .node.b{border-color:var(--green)} .node.c{border-color:var(--amber)} .node.d{border-color:var(--red)}
+.node small{color:var(--sub);font-size:13px;line-height:1.4}
+.node strong{font-size:15px}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:22px;flex:0 0 22px}
+@media (max-width:700px){.flow{flex-direction:column}.arrow{transform:rotate(90deg);flex-basis:auto}}
+.step{display:flex;gap:14px}
+.step .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--display)}
+.steps{display:flex;flex-direction:column;gap:14px}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.bar{height:14px;border-radius:7px;background:var(--line);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:14px;color:var(--sub)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.phase{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.phase .card{gap:8px}
+.phase .card h3{display:flex;gap:10px;align-items:center}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:var(--bg);padding:1px 6px;border-radius:6px}
+a{color:var(--blue)}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="pill info">Pulse · plan for your review · 25 Nov 2026</span>
+  <h1>Exercise animations from ExerciseDB, done smoothly</h1>
+  <div class="verdict">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <strong>Yes, it is fine for Pulse, as long as Pulse stays personal.</strong>
+      <p>ExerciseDB's free version allows personal and non-commercial apps, with a credit to AscendAPI. I tested it today: all 1,500 exercises came in without a single error. Every exercise has a small animated picture (180×180). The pictures look 3D, with the worked muscles shown in red.</p>
+    </div>
+  </div>
+</header>
+
+<section class="grid" aria-label="Numbers measured today">
+  <div class="card stat"><b>1,500</b><span class="sub">exercises, each with an animation and 6 steps</span></div>
+  <div class="card stat"><b>60</b><span class="sub">calls to get the whole list (25 per call), done in 1 min 44 s</span></div>
+  <div class="card stat"><b>124 KB</b><span class="sub">size of one animation (bench press, 180×180)</span></div>
+  <div class="card stat"><b>≈ 185 MB</b><span class="sub">all 1,500 animations together, only if you choose “Download all”</span></div>
+</section>
+
+<section class="card">
+  <h2>The rules, and how Pulse keeps them</h2>
+  <div class="grid3">
+    <div style="display:flex;flex-direction:column;gap:8px"><span class="pill ok">Allowed</span><p>Personal apps, non-commercial apps, learning projects.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><span class="pill no">Not allowed</span><p>Selling the app, ads, subscriptions or any paid use, unless you buy their paid plan.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><span class="pill warn">Must do</span><p>Show a credit to AscendAPI. Be gentle: the free version has strict limits on how fast you ask.</p></div>
+  </div>
+  <ul>
+    <li><strong>Credit:</strong> “Exercise data and animations: ExerciseDB by AscendAPI” under every animation and in Settings, Training, Sources.</li>
+    <li><strong>Gentle:</strong> one request at a time, at least 1.2 seconds apart. If ExerciseDB says “too many”, Pulse waits and tries later by itself.</li>
+    <li><strong>Safety lock:</strong> the build stops with a clear message if anyone tries to make a Play Store version while the free ExerciseDB is switched on. So it can't be published by mistake.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>How it works</h2>
+  <p class="sub">Pulse asks ExerciseDB once, saves everything on your phone, and works from there. Your screens never wait for the internet.</p>
+  <div class="flow" role="img" aria-label="ExerciseDB sends the exercise list once to Pulse's database on the phone. Animations are saved on the phone when you open an exercise, when they are in your plan, or when you choose download all. All screens read from the phone.">
+    <div class="node a"><strong>ExerciseDB (internet)</strong><small>1,500 exercises and their animations</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node b"><strong>1. List comes in once</strong><small>60 calls in the background, about 2 minutes. Checked again every 30 days.</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node b"><strong>2. Saved on your phone</strong><small>Names, muscles, equipment, steps. Search and filters work offline, instantly.</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node c"><strong>3. Animations saved for good</strong><small>When you open an exercise, when it's in your plan, or with “Download all”.</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node b"><strong>4. Every screen</strong><small>Exercise page, search results, workout, how-to sheet. No waiting.</small></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Never an empty spot</h2>
+  <p class="sub">Every exercise always shows something. Pulse picks the best thing it has, in this order:</p>
+  <div class="flow" role="img" aria-label="First the animation saved on the phone. If missing, download it now when online. If offline, show the old two photos. If none, show a muscle drawing and download later on Wi-Fi.">
+    <div class="node b"><strong>1. Animation on phone</strong><small>Plays at once, offline</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node a"><strong>2. Download it now</strong><small>If you're online: about 1 second, then kept</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node c"><strong>3. Old 2 photos</strong><small>If offline, the start and end photos Pulse already has</small></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="node d"><strong>4. Muscle drawing</strong><small>With “Will download on Wi-Fi”. Steps still show.</small></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Your exercises: nothing gets lost</h2>
+  <p>ExerciseDB becomes the main list. Pulse's present list (876) stays too, because ExerciseDB is missing some common exercises: <strong>plank, hip thrust, face pull, Bulgarian split squat and chin-up</strong>. Together you get about 1,700 exercises.</p>
+  <div>
+    <div class="bar" role="img" aria-label="Of Pulse's 876 exercises, 137 match ExerciseDB by exact name, 65 match closely, 674 have no match and stay as they are">
+      <span style="width:15.6%;background:var(--green)"></span><span style="width:7.4%;background:var(--blue)"></span><span style="width:77%;background:var(--line)"></span>
+    </div>
+    <div class="legend" style="margin-top:8px"><span><i style="background:var(--green)"></i>137 same name: they get the animation</span><span><i style="background:var(--blue)"></i>65 close name: you confirm once</span><span><i style="background:var(--line)"></i>674 stay as they are, with photos</span></div>
+  </div>
+  <ul>
+    <li>Workouts, records and plans you already have keep pointing to the same exercise. Nothing is renamed behind your back.</li>
+    <li>If ExerciseDB ever removes an exercise, Pulse keeps its saved copy, so your history never breaks.</li>
+    <li>Bringing in Boostcamp gets better: 1,700 names means far fewer “please check” questions.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>What you see in the app</h2>
+  <div class="grid3">
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Exercise page</h3><p>Big animation that loops. Pause, slow (½ speed), normal, full screen. Steps, muscles, equipment below. Credit line under the animation.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Search and filters</h3><p>Search by name. Filter by 10 body parts, 38 muscles, 30 kinds of equipment, plus favourites and “saved for offline”. Small still pictures in the list so scrolling stays fast.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>During a workout</h3><p>Small moving picture on each exercise card. Tap it for the how-to sheet. Animations for today's workout are saved before you start.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Settings, Training, Animations</h3><p>Shows how many are saved and how much space they use. “Download all (≈185 MB, Wi-Fi only)”, pause, delete all. Sources and credits.</p></div>
+  </div>
+  <p class="sub">The screens follow the mockups you saw (<a href="https://claude.ai/artifact/8qaQQWFfBVVTzohyaRwKn4">Pulse Workouts Tab and Exercise Videos</a>). The “Video” tab becomes “Animation”.</p>
+</section>
+
+<section class="card">
+  <h2>Smart downloads, so nothing feels slow</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>When</th><th>What Pulse saves</th><th>Network</th></tr></thead>
+    <tbody>
+      <tr><td>You open an exercise</td><td>That animation</td><td>Any</td></tr>
+      <tr><td>You start a plan</td><td>All exercises in the plan</td><td>Wi-Fi, in the background</td></tr>
+      <tr><td>The night before a workout</td><td>Exercises of the next workout, if missing</td><td>Wi-Fi, phone charging</td></tr>
+      <tr><td>You tap the star</td><td>That favourite</td><td>Wi-Fi</td></tr>
+      <tr><td>You choose “Download all”</td><td>All 1,500 (≈185 MB, about 35 minutes)</td><td>Wi-Fi only, can pause</td></tr>
+    </tbody>
+  </table></div>
+  <p class="sub">Animations are kept in Pulse's own storage, not a cache Android empties. They survive app updates.</p>
+</section>
+
+<section class="card">
+  <h2>Build steps</h2>
+  <div class="phase">
+    <div class="card"><h3><span class="pill info">1</span>Data</h3><p>New tables for ExerciseDB data, muscle and equipment lists mapped to Pulse's, the 30-day check.</p></div>
+    <div class="card"><h3><span class="pill info">2</span>Gentle client</h3><p>One request at a time, 1.2 s apart, waits when told “too many”, picks up where it stopped.</p></div>
+    <div class="card"><h3><span class="pill info">3</span>Merge</h3><p>Join with your present exercises, keep history, ask you once about the 65 close names.</p></div>
+    <div class="card"><h3><span class="pill info">4</span>Animations</h3><p>Saving and playing, with pause, slow and full screen. The fallback order above.</p></div>
+    <div class="card"><h3><span class="pill info">5</span>Screens</h3><p>Exercise page, search and filters, workout cards, how-to sheet, settings, credits.</p></div>
+    <div class="card"><h3><span class="pill info">6</span>Test and check</h3><p>Unit tests, device tests, emulator walk-through, airplane mode, slow network, full phone.</p></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>How I'll test it</h2>
+  <ul>
+    <li><strong>Rules in code:</strong> name matching, muscle and equipment mapping, the fallback order, the wait-and-retry rules.</li>
+    <li><strong>A fake ExerciseDB</strong> on the computer that answers slowly, says “too many”, or breaks halfway, to check Pulse waits and resumes without losing anything.</li>
+    <li><strong>On the emulator:</strong> first start, airplane mode, slow network, phone storage nearly full, app killed in the middle of downloading.</li>
+    <li><strong>Your history:</strong> a copy of real workouts goes through the merge, and every workout and record must still be there.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Risks and answers</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>What could happen</th><th>What Pulse does</th></tr></thead>
+    <tbody>
+      <tr><td>ExerciseDB is down or closes the free version</td><td>Everything already saved keeps working. Missing ones show photos or drawings.</td></tr>
+      <tr><td>Too many requests</td><td>Waits 10 s, then 30 s, then 2 min. After 3 tries it stops until the next day.</td></tr>
+      <tr><td>They change an exercise</td><td>The 30-day check updates it. Your logged sets don't change.</td></tr>
+      <tr><td>Small pictures (180×180)</td><td>Shown sharp at a sensible size. Bigger needs their paid plan.</td></tr>
+      <tr><td>You want to publish Pulse one day</td><td>The safety lock reminds you. Switch to a paid pack: the app is built so the source can be swapped.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" style="border-color:var(--ink)">
+  <h2>What I need from you</h2>
+  <ul>
+    <li><strong>Your OK</strong> on this plan. Then I update the mockups (the Animation tab) for a quick look, and build.</li>
+    <li><strong>Default for downloads:</strong> I suggest saving only what you use (plan, favourites, opened ones). “Download all” stays a button you choose.</li>
+  </ul>
+  <p class="sub">Source of the rules: <a href="https://oss.exercisedb.dev/docs">oss.exercisedb.dev/docs</a> (ExerciseDB V1 free version, by AscendAPI).</p>
+</section>
+
+</div>

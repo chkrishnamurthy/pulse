@@ -4,6 +4,7 @@
     <string name="widget_steps_desc">Steps today, or steps, zone minutes and sleep side by side</string>
     <string name="widget_heart_desc">Resting heart rate with a 7-day trend</string>
     <string name="widget_sleep_desc">Last night\'s sleep and stages</string>
+    <string name="widget_train_desc">Your next workout and this week</string>
     <string name="widget_sync_desc">When Pulse last synced</string>
     <string name="widget_art_tiny_desc">Steps, heart, sleep or sync in one small square</string>
     <string name="widget_art_pill_desc">Step wave or band battery</string>

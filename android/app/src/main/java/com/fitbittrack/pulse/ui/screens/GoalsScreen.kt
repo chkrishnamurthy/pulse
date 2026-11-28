@@ -111,8 +111,9 @@ fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () ->
                 }
             }
         }, dividerInset = 38)
-        SectionTitle("Goals in the circle")
-        RowGroup(GoalMetric.entries.filter { it in GoalCalendar.TODAY }.map { m ->
+        // Steps has its own card and sleep and calories are always listed, so only the rest can be added.
+        SectionTitle("More goals on Home")
+        RowGroup(GoalMetric.entries.filter { it in GoalCalendar.TODAY && it != GoalMetric.Steps && it !in HOME_ALWAYS }.map { m ->
             {
                 val on = m in prefs.ringGoals
                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -120,10 +121,9 @@ fun CustomizeScreen(prefs: UiPrefs, contentPadding: PaddingValues, onBack: () ->
                     Text(m.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(start = 12.dp))
                     Switch(
                         checked = on,
-                        // The last goal stays: an empty circle would say nothing.
-                        enabled = !on || prefs.ringGoals.size > 1,
-                        onCheckedChange = { v -> onPrefsChange(prefs.copy(ringGoals = if (v) prefs.ringGoals + m else prefs.ringGoals - m)) },
-                        modifier = Modifier.semantics { contentDescription = "Show ${m.label} in the circle" },
+                        // Steps stays in the saved set, so turning the last extra goal off never empties it.
+                        onCheckedChange = { v -> onPrefsChange(prefs.copy(ringGoals = if (v) prefs.ringGoals + m else prefs.ringGoals - m + GoalMetric.Steps)) },
+                        modifier = Modifier.semantics { contentDescription = "Show ${m.label} on Home" },
                     )
                 }
             }
@@ -136,6 +136,7 @@ private fun cardColor(card: TodayCard): androidx.compose.ui.graphics.Color {
     val c = PulseTheme.colors
     return when (card) {
         TodayCard.Ring -> c.move
+        TodayCard.Train -> c.active
         TodayCard.Band, TodayCard.Air, TodayCard.Body -> c.body
         TodayCard.Week -> c.energy
         TodayCard.Tip -> c.good

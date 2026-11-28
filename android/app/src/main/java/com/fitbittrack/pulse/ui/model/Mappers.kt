@@ -201,6 +201,8 @@ object Mappers {
                 distanceMeters = w.distanceMeters,
                 avgHeartRate = w.avgHeartRate,
                 caloriesKcal = w.caloriesKcal,
+                startMs = w.start.toEpochMilli(),
+                endMs = w.end.toEpochMilli(),
             )
         }
     }

@@ -49,6 +49,7 @@ import androidx.glance.semantics.contentDescription
 import androidx.glance.semantics.semantics
 import com.fitbittrack.pulse.MainActivity
 import com.fitbittrack.pulse.R
+import com.fitbittrack.pulse.ui.format.Fmt
 import com.fitbittrack.pulse.ui.widget.SyncNowAction
 
 /*
@@ -139,7 +140,7 @@ private fun open(context: Context, tap: WidgetTap, question: Int? = null): Actio
 /** What a screen reader says for the picture. */
 internal fun spoken(design: WidgetDesign, d: ArtData): String {
     if (!d.signedIn) return "Open Pulse to sign in"
-    val f = com.fitbittrack.pulse.ui.format.Fmt
+    val f = Fmt
     val steps = "${f.count(d.steps)} of ${f.count(d.stepGoal)} steps"
     val sleep = if (d.sleepMinutes == null) "No sleep yet" else "${f.minutes(d.sleepMinutes)} of sleep"
     val heart = "Resting heart rate ${f.count(d.restingHr)}"

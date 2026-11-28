@@ -19,7 +19,8 @@ import com.fitbittrack.pulse.ui.screens.BandLook
 import com.fitbittrack.pulse.ui.screens.airFrom
 import com.fitbittrack.pulse.ui.screens.airTag
 import com.fitbittrack.pulse.ui.screens.bandLook
-import com.fitbittrack.pulse.ui.screens.dayPercent
+import com.fitbittrack.pulse.ui.screens.goalLeft
+import com.fitbittrack.pulse.ui.screens.hourBars
 import com.fitbittrack.pulse.ui.screens.homeGoals
 import com.fitbittrack.pulse.ui.screens.GoalLook
 import com.fitbittrack.pulse.ui.screens.goalLook
@@ -41,15 +42,25 @@ class HomeTest {
         lastTrackerLabel = tracker, batteryPercent = level, batteryWord = word, firstSyncPending = false,
     )
 
-    @Test fun `the day is the average of the goals, each up to 100`() {
-        assertEquals(87, dayPercent(listOf(goal(84.0), goal(88.0), goal(78.0), goal(161.0))))
-        assertEquals(50, dayPercent(listOf(goal(0.0), goal(100.0))))
+    @Test fun `a goal says what is left in real numbers`() {
+        assertEquals("2,760 steps to go", goalLeft(GoalMetric.Steps, 7_240.0, 10_000.0, false, Units.Metric))
+        assertEquals("960 kcal to go", goalLeft(GoalMetric.Calories, 1_840.0, 2_800.0, false, Units.Metric))
+        assertEquals("58m short", goalLeft(GoalMetric.Sleep, 422.0, 480.0, false, Units.Metric))
+        assertEquals("Goal reached", goalLeft(GoalMetric.Steps, 10_400.0, 10_000.0, true, Units.Metric))
+        // Live steps past the goal: only the band can finish it.
+        assertEquals("Nearly there, waiting for the band", goalLeft(GoalMetric.Steps, 10_050.0, 10_000.0, false, Units.Metric))
+        assertEquals("No data yet", goalLeft(GoalMetric.Steps, null, 10_000.0, false, Units.Metric))
     }
 
-    @Test fun `a goal without data does not lower the day`() {
-        assertEquals(80, dayPercent(listOf(goal(80.0), goal(null))))
-        assertNull(dayPercent(listOf(goal(null))))
-        assertNull(dayPercent(emptyList()))
+    @Test fun `hour bars are scaled to the busiest hour so far`() {
+        val hours = List<Long?>(24) { h -> when (h) { 8 -> 500L; 9 -> 1_000L; 10 -> null; 15 -> 9_000L; else -> 0L } }
+        val bars = hourBars(hours, 12)
+        assertEquals(0.5f, bars[8])
+        assertEquals(1f, bars[9])
+        assertNull(bars[10]) // no data
+        assertNull(bars[15]) // later than now
+        assertEquals(0f, bars[0])
+        assertEquals(listOf<Float?>(0f, null), hourBars(listOf(0L, 5L), 0))
     }
 
     @Test fun `battery and air share a row only when they follow each other`() {
@@ -69,11 +80,11 @@ class HomeTest {
         assertEquals(fresh, decodeTodayCards(""))
     }
 
-    @Test fun `saved order and switches are kept, new cards come last and off`() {
+    @Test fun `saved order and switches are kept, new cards come last and off, Training comes behind the circle and on`() {
         val cards = decodeTodayCards("Band:1,Ring:0,Air:1")
-        assertEquals(listOf(TodayCard.Band to true, TodayCard.Ring to false, TodayCard.Air to true), cards.take(3))
+        assertEquals(listOf(TodayCard.Band to true, TodayCard.Ring to false, TodayCard.Train to true, TodayCard.Air to true), cards.take(4))
         assertEquals(TodayCard.entries.toSet(), cards.map { it.first }.toSet())
-        assertEquals(setOf(false), cards.drop(3).map { it.second }.toSet())
+        assertEquals(setOf(false), cards.drop(4).map { it.second }.toSet())
     }
 
     @Test fun `the circle starts with steps and calories and always has a goal`() {
@@ -83,10 +94,10 @@ class HomeTest {
         assertEquals(GoalCalendar.CIRCLE, decodeRingGoals("Floors")) // not a circle goal
     }
 
-    @Test fun `zone minutes are listed only when they are in the circle`() {
+    @Test fun `steps has its own card and zone minutes are listed only when added`() {
         val items = GoalMetric.entries.map { GoalProgress(it, 1.0, 2.0) }
-        assertEquals(listOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories), homeGoals(items, GoalCalendar.CIRCLE).map { it.metric })
-        assertEquals(listOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories, GoalMetric.Zone), homeGoals(items, setOf(GoalMetric.Zone)).map { it.metric })
+        assertEquals(listOf(GoalMetric.Sleep, GoalMetric.Calories), homeGoals(items, GoalCalendar.CIRCLE).map { it.metric })
+        assertEquals(listOf(GoalMetric.Sleep, GoalMetric.Calories, GoalMetric.Zone), homeGoals(items, setOf(GoalMetric.Zone)).map { it.metric })
     }
 
     @Test fun `today carries the newest heart rate and its time`() {
@@ -127,17 +138,17 @@ class HomeTest {
         assertEquals("Estimate, 12:00 pm", airFrom(AirReading(42, now, AirSource.Estimate), Units.Metric, now, ZoneId.of("UTC"), short = true))
     }
 
-    @Test fun `live steps carry a sign and only the band can finish a goal`() {
+    @Test fun `live steps are marked and the band's numbers carry their age`() {
         val now = Instant.parse("2026-11-24T10:00:00Z")
         val live = HomeLive(steps = 102, bandUpTo = now.minusSeconds(480))
-        assertEquals(GoalLook(102.0, true, "99%", "Live"), goalLook(goal(90.0), live, now))
-        assertEquals(GoalLook(120.0, false, "Done", "8 min"), goalLook(goal(120.0), live, now)) // the band is ahead
-        assertEquals(GoalLook(90.0, false, "90%", "8 min"), goalLook(goal(90.0), live.copy(steps = null), now))
-        assertEquals(GoalLook(102.0, true, "99%", "Live"), goalLook(goal(null), live, now))
-        assertEquals(GoalLook(null, false, "–", null), goalLook(goal(null), HomeLive(), now))
+        assertEquals(GoalLook(102.0, true, "Live"), goalLook(goal(90.0), live, now))
+        assertEquals(GoalLook(120.0, false, "8 min"), goalLook(goal(120.0), live, now)) // the band is ahead
+        assertEquals(GoalLook(90.0, false, "8 min"), goalLook(goal(90.0), live.copy(steps = null), now))
+        assertEquals(GoalLook(102.0, true, "Live"), goalLook(goal(null), live, now))
+        assertEquals(GoalLook(null, false, null), goalLook(goal(null), HomeLive(), now))
         // Sleep is not from the last minutes: no age, and never live.
-        assertEquals(GoalLook(90.0, false, "90%", null), goalLook(GoalProgress(GoalMetric.Sleep, 90.0, 100.0), live, now))
-        assertEquals(GoalLook(90.0, false, "90%", "8 min"), goalLook(GoalProgress(GoalMetric.Calories, 90.0, 100.0), live, now))
+        assertEquals(GoalLook(90.0, false, null), goalLook(GoalProgress(GoalMetric.Sleep, 90.0, 100.0), live, now))
+        assertEquals(GoalLook(90.0, false, "8 min"), goalLook(GoalProgress(GoalMetric.Calories, 90.0, 100.0), live, now))
     }
 
     @Test fun `the age of a number is short`() {

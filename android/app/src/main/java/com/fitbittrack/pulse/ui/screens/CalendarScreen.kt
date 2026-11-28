@@ -98,6 +98,10 @@ fun CalendarScreen(
     onMonth: (YearMonth) -> Unit,
     onDay: (LocalDate) -> Unit,
     onEditGoals: () -> Unit,
+    /** The Workouts chip: shows the planned and finished workouts in place of the goals. */
+    workoutsOn: Boolean = false,
+    onWorkouts: (Boolean) -> Unit = {},
+    workouts: @Composable () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val thisMonth = YearMonth.from(ui.today)
@@ -107,12 +111,17 @@ fun CalendarScreen(
             TextButton(onClick = onEditGoals) { Text("Edit goals") }
         }
 
-        ui.todayGoals?.let { TodayTargets(it, ui.allGoalsStreak, units) { onDay(ui.today) } }
+        if (!workoutsOn) ui.todayGoals?.let { TodayTargets(it, ui.allGoalsStreak, units) { onDay(ui.today) } }
 
         // --- Which goal ---
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GoalChip("All goals", null, ui.metric == null) { onMetric(null) }
-            GoalMetric.entries.filter { it in ui.coreGoals }.forEach { m -> GoalChip(m.label, m, ui.metric == m) { onMetric(m) } }
+            WorkoutsChip(workoutsOn) { onWorkouts(true) }
+            GoalChip("All goals", null, !workoutsOn && ui.metric == null) { onWorkouts(false); onMetric(null) }
+            GoalMetric.entries.filter { it in ui.coreGoals }.forEach { m -> GoalChip(m.label, m, !workoutsOn && ui.metric == m) { onWorkouts(false); onMetric(m) } }
+        }
+        if (workoutsOn) {
+            workouts()
+            return@PulsePage
         }
 
         // --- Month ---
@@ -231,7 +240,13 @@ private fun summary(ui: MonthUi): String = when {
 }
 
 @Composable
-private fun GoalChip(text: String, metric: GoalMetric?, selected: Boolean, onClick: () -> Unit) {
+private fun WorkoutsChip(selected: Boolean, onClick: () -> Unit) = Chip("Workouts", PulseTheme.colors.active, selected, onClick)
+
+@Composable
+private fun GoalChip(text: String, metric: GoalMetric?, selected: Boolean, onClick: () -> Unit) = Chip(text, metric?.let { PulseTheme.colors.fill(it.tone) }, selected, onClick)
+
+@Composable
+private fun Chip(text: String, dot: Color?, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(
         Modifier
@@ -243,7 +258,7 @@ private fun GoalChip(text: String, metric: GoalMetric?, selected: Boolean, onCli
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (metric != null) Box(Modifier.size(8.dp).background(PulseTheme.colors.fill(metric.tone), CircleShape))
+        if (dot != null) Box(Modifier.size(8.dp).background(dot, CircleShape))
         Text(text, style = MaterialTheme.typography.labelLarge, color = if (selected) scheme.onPrimary else scheme.onSurface, maxLines = 1)
     }
 }

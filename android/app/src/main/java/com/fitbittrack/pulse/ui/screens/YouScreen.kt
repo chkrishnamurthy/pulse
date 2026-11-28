@@ -62,6 +62,7 @@ fun YouScreen(
     onSync: () -> Unit,
     onChat: () -> Unit,
     onWidgets: () -> Unit,
+    onTraining: () -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onPrefsChange: (UiPrefs) -> Unit,
 ) {
@@ -94,7 +95,8 @@ fun YouScreen(
             add { ListRow(PulseIcons.Heart, c.heartLabel, "My band", sync.batteryPercent?.let { "Battery $it%" } ?: "Battery, sync and alerts", onClick = onBand) }
             add { ListRow(PulseIcons.Calendar, c.activeLabel, "Calendar goals", calendarGoalsLabel, onClick = onCalendarGoals) }
             add { ListRow(PulseIcons.Target, c.moveLabel, "Goals", "Steps, calories, sleep and more", onClick = onGoals) }
-            add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Cards, and goals in the circle", onClick = onCustomize) }
+            add { ListRow(PulseIcons.Gym, c.activeLabel, "Training", "Units, rest, reminder and backup", onClick = onTraining) }
+            add { ListRow(PulseIcons.Layout, c.sleepLabel, "Today screen", "Cards, and goals on Home", onClick = onCustomize) }
             add { ListRow(PulseIcons.Layout, c.energyLabel, "Widgets", "Pictures of your day for the home screen", onClick = onWidgets) }
             add { ListRow(PulseIcons.Chat, c.bodyLabel, "Ask Pulse", "What chat may read, your chats", onClick = onChat) }
             if (signedIn && !isSample) add {
@@ -210,14 +212,14 @@ fun SyncScreen(
     when (confirm) {
         "delete" -> ConfirmDialog(
             title = "Delete local data?",
-            body = "Removes every health record Pulse has saved on this phone. Your data in Google Health is not touched. Pulse downloads it again at the next sync.",
+            body = "Removes every health record Pulse has saved on this phone. Your data in Google Health is not touched. Pulse downloads it again at the next sync. Your training stays.",
             action = "Delete",
             onConfirm = { confirm = null; onDeleteData() },
             onDismiss = { confirm = null },
         )
         "signout" -> ConfirmDialog(
             title = "Sign out?",
-            body = "Pulse stops syncing, deletes everything it saved on this phone, and gives up its permission at Google. Your data in Google Health is not touched.",
+            body = "Pulse stops syncing, deletes the health data it saved on this phone, and gives up its permission at Google. Your data in Google Health is not touched. Your training stays on this phone.",
             action = "Sign out",
             onConfirm = { confirm = null; onSignOut() },
             onDismiss = { confirm = null },

@@ -12,6 +12,10 @@ val waqiKey: String = providers.fileContents(rootProject.layout.projectDirectory
     ?.let { text -> Properties().apply { load(text.reader()) }.getProperty("waqi.key") }
     .orEmpty().filter { it.isLetterOrDigit() }
 
+// ExerciseDB's free version allows personal, non-commercial use only. A Play Store bundle needs their paid plan first:
+// then build with -PexerciseDbPaid=true.
+val exerciseDbFree: Boolean = !providers.gradleProperty("exerciseDbPaid").map { it.toBoolean() }.getOrElse(false)
+
 android {
     namespace = "com.fitbittrack.pulse"
     compileSdk = 37
@@ -23,7 +27,10 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "WAQI_KEY", "\"$waqiKey\"")
+        // Exercise animations from ExerciseDB's free version: personal use only (see training/ExerciseDb.kt).
+        buildConfigField("boolean", "EXERCISEDB_FREE", "$exerciseDbFree")
     }
 
     buildTypes {
@@ -39,11 +46,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Old database layouts, so a device test can open each one and move it up.
+    sourceSets { getByName("androidTest").assets.directories.add(layout.projectDirectory.dir("schemas").asFile.path) }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
 }
+
+// Training data is the user's own work: every layout of its database is written down, so a later version can carry it over.
+ksp { arg("room.schemaLocation", layout.projectDirectory.dir("schemas").asFile.path) }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
@@ -69,6 +82,8 @@ dependencies {
 
     // Local database (offline copy of your health data)
     implementation(libs.androidx.room.runtime)
+    // Plays exercise animations with pause and slow motion
+    implementation(libs.gif.drawable)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
@@ -88,4 +103,20 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+
+    // The training database on a real Android, and walking through its pages
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.core)
+}
+
+// A store bundle can't be made by mistake while the free ExerciseDB is on.
+tasks.matching { it.name.startsWith("bundle") && it.name.endsWith("Release") }.configureEach {
+    val free = exerciseDbFree
+    doFirst {
+        if (free) throw GradleException(
+            "Pulse uses ExerciseDB's free version, which is for personal use only. Buy their paid plan, then build with -PexerciseDbPaid=true.",
+        )
+    }
 }

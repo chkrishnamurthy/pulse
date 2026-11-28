@@ -37,3 +37,10 @@ AnswerGuard, ChatSetupScreen). Without the AI library the release build went fro
 Installed on the S24 Ultra on 23 Nov 2026 at 22:55 as an update (same signature, file identical to the tested build, data kept). It starts
 without a crash. The phone was locked, so the chat with real data has not been looked at. The AI test app and the 2.6 GB file were
 removed; Pulse has no AI file of its own.
+
+## Old AI leftovers are deleted at start (25 Nov 2026)
+
+`chat/OldAiCleanup` runs at every app start and does nothing when nothing is left. It removes the `models` folder in
+no_backup (the AI file and any half download), the "pulse-ai-model" download job, the old `chat_wifi_only` setting and the
+AI's words inside saved chats (questions and Pulse's answers stay). Health data, training data and other files are not touched.
+Checked on the emulator with planted files: all removed, everything else kept. 3 unit tests in OldAiCleanupTest.

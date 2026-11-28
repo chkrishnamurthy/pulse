@@ -23,7 +23,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                         Text("How Pulse uses Health Connect", style = MaterialTheme.typography.headlineMedium)
                         listOf(
                             "Pulse reads today's steps, distance, floors, calories and heart rate, so your numbers appear faster. Steps counted by your phone are used only for the live step count.",
-                            "It only reads. It never changes or adds anything.",
+                            "Only if you switch on \"Save to Health Connect\" in Training: Pulse adds the workouts you finish in Pulse (name, start and end), and reads your body weight for the Progress page. It changes or deletes only its own workouts.",
                             "What it reads stays in the app's memory. It is not saved, not sent anywhere, and gone when Pulse closes.",
                             "You can turn this off in Pulse → Settings, or in Health Connect, at any time.",
                         ).forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }

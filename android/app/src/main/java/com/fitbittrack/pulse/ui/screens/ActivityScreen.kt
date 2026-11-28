@@ -23,7 +23,7 @@ import com.fitbittrack.pulse.ui.model.WorkoutUi
 import com.fitbittrack.pulse.ui.theme.PulseTheme
 
 @Composable
-fun ActivityScreen(activity: ActivityUi?, units: Units, contentPadding: PaddingValues, onBack: () -> Unit) {
+fun ActivityScreen(activity: ActivityUi?, units: Units, contentPadding: PaddingValues, onBack: () -> Unit, inTrain: (WorkoutUi) -> String? = { null }) {
     val c = PulseTheme.colors
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     DetailPage("Workouts", contentPadding, onBack) {
@@ -40,7 +40,7 @@ fun ActivityScreen(activity: ActivityUi?, units: Units, contentPadding: PaddingV
         }
 
         SectionTitle(when (val n = activity.workouts.size) { 0 -> "No workouts in the last 7 days"; 1 -> "1 workout in the last 7 days"; else -> "$n workouts in the last 7 days" })
-        if (activity.workouts.isNotEmpty()) RowGroup(activity.workouts.map { w -> { WorkoutRow(w, units, showDay = true) } })
+        if (activity.workouts.isNotEmpty()) RowGroup(activity.workouts.map { w -> { WorkoutRow(w, units, showDay = true, logged = inTrain(w)) } })
         Text(
             "Workouts come from your band's auto-detect, or ones you start in the Google Health app.",
             style = MaterialTheme.typography.bodyMedium, color = muted,
@@ -49,13 +49,14 @@ fun ActivityScreen(activity: ActivityUi?, units: Units, contentPadding: PaddingV
 }
 
 @Composable
-fun WorkoutRow(w: WorkoutUi, units: Units, showDay: Boolean) {
+fun WorkoutRow(w: WorkoutUi, units: Units, showDay: Boolean, logged: String? = null) {
     val c = PulseTheme.colors
     val icon = when (w.tag) { "WLK" -> PulseIcons.Steps; "GYM" -> PulseIcons.Bolt; else -> PulseIcons.Activity }
     ListRow(
         icon, c.activeLabel, w.name,
         subtitle = listOfNotNull(
             w.whenLabel.takeIf { showDay },
+            logged?.let { "logged in Train as $it" },
             w.distanceMeters?.let { Fmt.distance(it, units).let { (v, u) -> "$v $u" } },
             w.avgHeartRate?.let { "$it bpm" },
             w.caloriesKcal?.let { "${Fmt.whole(it)} kcal" },

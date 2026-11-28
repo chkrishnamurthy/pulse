@@ -1,0 +1,601 @@
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+index b39bcb4..dd2cb92 100644
+--- a/android/app/build.gradle.kts
++++ b/android/app/build.gradle.kts
+@@ -21,6 +21,7 @@ android {
+     buildTypes {
+         release {
+             isMinifyEnabled = true
++            isShrinkResources = true
+             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+         }
+     }
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/PulseGraph.kt b/android/app/src/main/java/com/fitbittrack/pulse/PulseGraph.kt
+index 99561c1..25835ca 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/PulseGraph.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/PulseGraph.kt
+@@ -13,6 +13,7 @@ import com.fitbittrack.pulse.sync.SyncScheduler
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.launch
+ 
+ /**
+  * Hand-made wiring for the data layer (one instance of each piece for the whole app).
+@@ -30,10 +31,16 @@ object PulseGraph {
+         val store = SettingsStore(context)
+         val tokens = GisTokenProvider(context)
+         val client = HealthClient(HealthApi(), tokens)
+-        val engine = SyncEngine(client, db.dao(), store, onSuccess = {
++        private val notifyListeners: suspend () -> Unit = {
+             syncListeners.forEach { listener -> runCatching { listener(context) } }
+-        })
+-        val repository: HealthRepository = HealthRepositoryImpl(db, store, engine, appScope)
++        }
++        val engine = SyncEngine(client, db.dao(), store, onSuccess = notifyListeners)
++        val repository: HealthRepository = HealthRepositoryImpl(db, store, engine, appScope, onLocalDataChanged = notifyListeners)
++
++        init {
++            // A "running" state saved by a process that was killed mid-sync. No sync can run yet in this process.
++            appScope.launch { store.clearStaleRunning() }
++        }
+     }
+ 
+     @Volatile private var graph: Graph? = null
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/HealthApi.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/HealthApi.kt
+index d9797fb..ca8d05f 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/HealthApi.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/HealthApi.kt
+@@ -90,7 +90,7 @@ class HealthApi(
+                 }
+                 val e = HealthApiException(code, body, explain(code, body))
+                 if (!e.isTransient || attempt >= maxAttempts) throw e
+-                sleeper(retryAfter?.times(1000) ?: backoffMillis(attempt))
++                sleeper(retryAfter?.coerceIn(1, 60)?.times(1000) ?: backoffMillis(attempt))
+                 continue
+             } catch (e: HealthApiException) {
+                 throw e
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/HealthRepositoryImpl.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/HealthRepositoryImpl.kt
+index 39b88ad..b33f679 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/HealthRepositoryImpl.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/HealthRepositoryImpl.kt
+@@ -29,6 +29,8 @@ class HealthRepositoryImpl(
+     private val engine: SyncEngine,
+     /** Lives as long as the app, so on-demand fetches finish even if a screen closes. */
+     private val appScope: CoroutineScope,
++    /** Runs after local data is deleted (widgets redraw to "Open Pulse to sign in"). */
++    private val onLocalDataChanged: suspend () -> Unit = {},
+ ) : HealthRepository {
+ 
+     private val dao = db.dao()
+@@ -61,12 +63,23 @@ class HealthRepositoryImpl(
+ 
+     override suspend fun setGoals(goals: Goals) = store.setGoals(goals)
+ 
++    /** If a sync is already running (for example the first history download), return at once: its progress shows in [syncStatus]. */
+     override suspend fun refreshNow() {
++        if (engine.isRunning) return
+         engine.sync(includeBackfill = false)
+     }
+ 
++    /** Stops any running sync first, so nothing is written back after the delete. */
+     override suspend fun deleteAllLocalData() {
+-        withContext(Dispatchers.IO) { db.clearAllTables() }
+-        store.resetSync()
++        engine.exclusive {
++            withContext(Dispatchers.IO) { db.clearAllTables() }
++            store.resetSync()
++        }
++        try {
++            onLocalDataChanged()
++        } catch (e: kotlinx.coroutines.CancellationException) {
++            throw e
++        } catch (_: Exception) {
++        }
+     }
+ }
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/local/Mappers.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/local/Mappers.kt
+index 93e6b60..10a7154 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/local/Mappers.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/local/Mappers.kt
+@@ -41,6 +41,7 @@ fun SleepEntity.toDomain() = SleepSession(
+     },
+     reportedMinutesAsleep = minutesAsleep,
+     isMainSleep = mainSleep,
++    wakeDate = runCatching { LocalDate.parse(wakeDate) }.getOrNull(),
+ )
+ 
+ fun Workout.toEntity(startDate: LocalDate) = WorkoutEntity(
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/local/PulseDatabase.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/local/PulseDatabase.kt
+index b6b704f..da34fde 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/local/PulseDatabase.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/local/PulseDatabase.kt
+@@ -8,7 +8,9 @@ import androidx.room.PrimaryKey
+ import androidx.room.Query
+ import androidx.room.Room
+ import androidx.room.RoomDatabase
+-import androidx.room.Upsert
++import androidx.room.Transaction
++import androidx.room.Insert
++import androidx.room.OnConflictStrategy
+ import kotlinx.coroutines.flow.Flow
+ 
+ /*
+@@ -61,37 +63,65 @@ data class WorkoutEntity(
+ data class FetchedDayEntity(val date: String, val kind: String, val fetchedAtMs: Long)
+ 
+ @Dao
+-interface HealthDao {
+-    @Upsert suspend fun upsertDaily(rows: List<DailyMetricEntity>)
+-    @Upsert suspend fun upsertHeartRate(rows: List<HeartRateEntity>)
+-    @Upsert suspend fun upsertHourly(rows: List<HourlyStepsEntity>)
+-    @Upsert suspend fun upsertSleep(rows: List<SleepEntity>)
+-    @Upsert suspend fun upsertWorkouts(rows: List<WorkoutEntity>)
+-    @Upsert suspend fun upsertFetched(row: FetchedDayEntity)
++abstract class HealthDao {
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertDaily(rows: List<DailyMetricEntity>)
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertHeartRate(rows: List<HeartRateEntity>)
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertHourly(rows: List<HourlyStepsEntity>)
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertSleep(rows: List<SleepEntity>)
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertWorkouts(rows: List<WorkoutEntity>)
++    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun upsertFetched(row: FetchedDayEntity)
+ 
+     @Query("SELECT * FROM daily_metric WHERE date >= :from AND date <= :to ORDER BY date")
+-    fun daily(from: String, to: String): Flow<List<DailyMetricEntity>>
+-
+-    @Query("SELECT COUNT(*) FROM daily_metric WHERE metric = :metric AND date >= :from AND date < :toExclusive")
+-    suspend fun countDaily(metric: String, from: String, toExclusive: String): Int
++    abstract fun daily(from: String, to: String): Flow<List<DailyMetricEntity>>
+ 
+     @Query("SELECT * FROM heart_rate WHERE date = :date ORDER BY epochSecond")
+-    fun heartRate(date: String): Flow<List<HeartRateEntity>>
++    abstract fun heartRate(date: String): Flow<List<HeartRateEntity>>
+ 
+     @Query("DELETE FROM heart_rate WHERE date = :date")
+-    suspend fun deleteHeartRate(date: String)
++    abstract suspend fun deleteHeartRate(date: String)
+ 
+     @Query("SELECT * FROM hourly_steps WHERE date = :date ORDER BY hour")
+-    fun hourly(date: String): Flow<List<HourlyStepsEntity>>
++    abstract fun hourly(date: String): Flow<List<HourlyStepsEntity>>
++
++    @Query("DELETE FROM hourly_steps WHERE date = :date")
++    abstract suspend fun deleteHourly(date: String)
+ 
+     @Query("SELECT * FROM sleep_session WHERE wakeDate >= :from AND wakeDate <= :to ORDER BY startMs")
+-    fun sleep(from: String, to: String): Flow<List<SleepEntity>>
++    abstract fun sleep(from: String, to: String): Flow<List<SleepEntity>>
++
++    @Query("DELETE FROM sleep_session WHERE wakeDate >= :from")
++    abstract suspend fun deleteSleepFrom(from: String)
+ 
+     @Query("SELECT * FROM workout WHERE startDate >= :from AND startDate <= :to ORDER BY startMs DESC")
+-    fun workouts(from: String, to: String): Flow<List<WorkoutEntity>>
++    abstract fun workouts(from: String, to: String): Flow<List<WorkoutEntity>>
++
++    @Query("DELETE FROM workout WHERE startDate >= :from")
++    abstract suspend fun deleteWorkoutsFrom(from: String)
+ 
+     @Query("SELECT * FROM fetched_day WHERE date = :date AND kind = :kind")
+-    suspend fun fetched(date: String, kind: String): FetchedDayEntity?
++    abstract suspend fun fetched(date: String, kind: String): FetchedDayEntity?
++
++    /** Heart rate for one day, swapped in one step so the graph never flashes empty. */
++    @Transaction
++    open suspend fun replaceHeartRate(date: String, rows: List<HeartRateEntity>) {
++        deleteHeartRate(date); upsertHeartRate(rows)
++    }
++
++    @Transaction
++    open suspend fun replaceHourly(date: String, rows: List<HourlyStepsEntity>) {
++        deleteHourly(date); upsertHourly(rows)
++    }
++
++    /** Makes the local copy match Google for every wake day from [from] on (removes sessions deleted at Google). */
++    @Transaction
++    open suspend fun replaceSleepFrom(from: String, rows: List<SleepEntity>) {
++        deleteSleepFrom(from); upsertSleep(rows)
++    }
++
++    @Transaction
++    open suspend fun replaceWorkoutsFrom(from: String, rows: List<WorkoutEntity>) {
++        deleteWorkoutsFrom(from); upsertWorkouts(rows)
++    }
+ }
+ 
+ @Database(
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/local/SettingsStore.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/local/SettingsStore.kt
+index a2a1b6e..e438cdf 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/local/SettingsStore.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/local/SettingsStore.kt
+@@ -89,6 +89,9 @@ class SettingsStore(private val store: DataStore<Preferences>) {
+ 
+     suspend fun setIdle() = store.edit { it[K.state] = "idle" }
+ 
++    /** A "running" state left over from a process that was killed mid-sync. Call once per process, before any sync. */
++    suspend fun clearStaleRunning() = store.edit { if (it[K.state] == "running") it[K.state] = "idle" }
++
+     suspend fun setLastTrackerSync(at: Instant) = store.edit { it[K.lastTracker] = at.toEpochMilli() }
+ 
+     suspend fun isBackfillDone(): Boolean = store.data.first()[K.backfillDone] ?: false
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/data/remote/Parsers.kt b/android/app/src/main/java/com/fitbittrack/pulse/data/remote/Parsers.kt
+index 3dab9e1..4bf82c8 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/data/remote/Parsers.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/data/remote/Parsers.kt
+@@ -152,7 +152,7 @@ object Parsers {
+         val minutesAsleep = s.obj("summary")?.num("minutesAsleep")?.toLong()
+         val main = s.obj("metadata")?.bool("mainSleep") ?: true
+         val wake = interval.localDateOf("endTime", "endUtcOffset", "civilEndTime", zone) ?: return null
+-        return ParsedSleep(SleepSession(id, start, end, stages, minutesAsleep, main), wake)
++        return ParsedSleep(SleepSession(id, start, end, stages, minutesAsleep, main, wake), wake)
+     }
+ 
+     fun stageType(raw: String?): SleepStageType = when (raw) {
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/domain/Models.kt b/android/app/src/main/java/com/fitbittrack/pulse/domain/Models.kt
+index fe6a4d9..4932e05 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/domain/Models.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/domain/Models.kt
+@@ -41,6 +41,8 @@ data class SleepSession(
+     /** Google's own "minutes asleep" when it sends one; otherwise worked out from the stages. */
+     private val reportedMinutesAsleep: Long? = null,
+     val isMainSleep: Boolean = true,
++    /** The local day you woke up, from Google's civil end time (correct even after travel). */
++    val wakeDate: LocalDate? = null,
+ ) {
+     val minutesAsleep: Long
+         get() = reportedMinutesAsleep
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/sync/GisTokenProvider.kt b/android/app/src/main/java/com/fitbittrack/pulse/sync/GisTokenProvider.kt
+index 23d31bb..8302858 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/sync/GisTokenProvider.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/sync/GisTokenProvider.kt
+@@ -38,7 +38,7 @@ class GisTokenProvider(context: Context) : TokenProvider {
+             is GoogleHealthAuth.Outcome.NeedsConsent ->
+                 throw NeedsSignInException("Google needs you to sign in again. Open Pulse and tap Connect.")
+             is GoogleHealthAuth.Outcome.Failed ->
+-                if ("internet" in outcome.message.lowercase()) throw HealthApiException(null, "", outcome.message)
++                if (outcome.retryable) throw HealthApiException(null, "", outcome.message)
+                 else throw NeedsSignInException(outcome.message)
+         }
+     }
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncEngine.kt b/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncEngine.kt
+index b61f55a..69d45a4 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncEngine.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncEngine.kt
+@@ -10,6 +10,7 @@ import com.fitbittrack.pulse.data.local.SettingsStore
+ import com.fitbittrack.pulse.data.local.toEntity
+ import com.fitbittrack.pulse.data.remote.DAILY_LISTS
+ import com.fitbittrack.pulse.data.remote.DAILY_ROLLUPS
++import com.fitbittrack.pulse.data.remote.DailyListSpec
+ import com.fitbittrack.pulse.data.remote.DailyValue
+ import com.fitbittrack.pulse.data.remote.HealthClient
+ import com.fitbittrack.pulse.data.remote.Metric
+@@ -39,7 +40,12 @@ import kotlin.math.roundToInt
+  * - History backfill (first run only): walks back 90 days at a time until two empty windows
+  *   in a row (or 10 years), then fills every metric for that whole range.
+  *
+- * Every write is an upsert keyed by date or Google's data point name: no duplicates.
++ * Safety rules:
++ * - Every write is an upsert keyed by date or Google's data point name: no duplicates. Sleep and
++ *   workouts are replaced for exactly the window fetched, so sessions deleted at Google go away too.
++ * - Each data type is fetched on its own. A type the user didn't allow (403) or that Google rejects
++ *   (400/404) is skipped; the sync only fails if every type fails, or sign-in is needed.
++ * - [exclusive] (used by "delete local data") stops a running sync before clearing anything.
+  */
+ class SyncEngine(
+     private val client: HealthClient,
+@@ -52,24 +58,53 @@ class SyncEngine(
+     /** Called after every successful sync (for example to refresh home-screen widgets). */
+     private val onSuccess: suspend () -> Unit = {},
+ ) {
+-    enum class Outcome { OK, NEEDS_SIGN_IN, RETRY_LATER, FAILED }
++    enum class Outcome { OK, NEEDS_SIGN_IN, RETRY_LATER, FAILED, ABORTED }
++
++    /** Thrown inside a sync when [exclusive] asked it to stop. Never leaves this class. */
++    private class Aborted : Exception("Sync stopped because local data is being deleted.")
+ 
+     private val syncLock = Mutex()
+     private val detailLock = Mutex()
++    @Volatile private var abortRequested = false
++
++    /** Types skipped in the current run, and the first error seen (reported if nothing worked). */
++    private var skipped = mutableListOf<String>()
++    private var firstSkipError: HealthApiException? = null
++    private var typesOk = 0
++
++    /** True while a sync is running (pull-to-refresh uses this to return at once). */
++    val isRunning: Boolean get() = syncLock.isLocked
+ 
+     private fun today(): LocalDate = LocalDate.now(clock.withZone(zone()))
+ 
++    private fun checkNotAborted() {
++        if (abortRequested) throw Aborted()
++    }
++
+     suspend fun sync(includeBackfill: Boolean): Outcome = syncLock.withLock {
++        skipped = mutableListOf(); firstSkipError = null; typesOk = 0
+         try {
++            checkNotAborted()
+             store.setRunning("Getting your latest data…")
+             syncRecent()
++            if (typesOk == 0 && firstSkipError != null) throw firstSkipError!!
+             if (includeBackfill && !store.isBackfillDone()) backfill()
++            checkNotAborted()
+             store.setSucceeded(clock.instant())
+-            runCatching { onSuccess() }.exceptionOrNull()?.let { if (it is CancellationException) throw it }
++            try {
++                onSuccess()
++            } catch (e: CancellationException) {
++                throw e
++            } catch (_: Exception) {
++                // A widget failing to redraw is not a sync failure.
++            }
+             Outcome.OK
+         } catch (e: CancellationException) {
+             withContext(NonCancellable) { store.setIdle() }
+             throw e
++        } catch (_: Aborted) {
++            withContext(NonCancellable) { store.setIdle() }
++            Outcome.ABORTED
+         } catch (e: NeedsSignInException) {
+             store.setFailed(e.message ?: "Please sign in again.", needsSignIn = true)
+             Outcome.NEEDS_SIGN_IN
+@@ -81,6 +116,41 @@ class SyncEngine(
+                 e.isTransient -> Outcome.RETRY_LATER
+                 else -> Outcome.FAILED
+             }
++        } catch (e: Exception) {
++            // Anything unexpected (bad JSON, database error): never leave the status stuck on "running".
++            runCatching { android.util.Log.e("PulseSync", "Sync failed", e) } // no-op in plain unit tests
++            runCatching { store.setFailed("Sync failed: ${e.javaClass.simpleName}. It will try again later.", needsSignIn = false) }
++            Outcome.FAILED
++        }
++    }
++
++    /**
++     * Stops any running sync, waits for it to finish, then runs [block] with nothing else writing.
++     * Used by "delete local data" and sign-out.
++     */
++    suspend fun <T> exclusive(block: suspend () -> T): T {
++        abortRequested = true
++        try {
++            return syncLock.withLock { detailLock.withLock { block() } }
++        } finally {
++            abortRequested = false
++        }
++    }
++
++    /**
++     * Runs one data type's fetch. Skips the type on 403 (permission not granted), 404, or 400 that
++     * isn't ACCOUNT_NOT_LINKED. Sign-in problems, 401, network trouble and 429/5xx still stop the sync.
++     */
++    private suspend fun optional(what: String, block: suspend () -> Unit) {
++        checkNotAborted()
++        try {
++            block()
++            typesOk++
++        } catch (e: HealthApiException) {
++            val skippable = e.httpCode == 403 || e.httpCode == 404 || (e.httpCode == 400 && !e.isAccountNotLinked)
++            if (!skippable) throw e
++            skipped += what
++            if (firstSkipError == null) firstSkipError = e
+         }
+     }
+ 
+@@ -89,27 +159,35 @@ class SyncEngine(
+     private suspend fun syncRecent() {
+         val today = today()
+         for (spec in DAILY_ROLLUPS) {
+-            saveDaily(fetchRollup(spec, today.minusDays(6), today.plusDays(1)))
++            optional(spec.dataType) { saveDaily(fetchRollup(spec, today.minusDays(6), today.plusDays(1))) }
+         }
+         store.setRunning("Getting heart, sleep and recovery data…")
+         val since = today.minusDays(13)
+         for (spec in DAILY_LISTS) {
+-            val points = client.list(spec.dataType, filter = "${spec.filterName}.date >= \"$since\"", pageSize = 100)
+-            saveDaily(Parsers.dailyList(spec, points))
++            optional(spec.dataType) { saveDaily(Parsers.dailyList(spec, listDaily(spec, since, pageSize = 100))) }
+         }
+-        saveSleep(since = today.minusDays(6))
+-        saveWorkouts(since = today.minusDays(13))
+-        fetchHeartRate(today); fetchHeartRate(today.minusDays(1))
+-        fetchHourlySteps(today); fetchHourlySteps(today.minusDays(1))
++        optional("sleep") { saveSleep(since = today.minusDays(6)) }
++        optional("exercise") { saveWorkouts(since = today.minusDays(13)) }
++        optional("heart-rate") { fetchHeartRate(today); fetchHeartRate(today.minusDays(1)) }
++        optional("steps-hourly") { fetchHourlySteps(today); fetchHourlySteps(today.minusDays(1)) }
+         updateTrackerSync()
+     }
+ 
++    /** Daily list with a date filter; if Google rejects the filter (400), fetch the whole list instead. */
++    private suspend fun listDaily(spec: DailyListSpec, since: LocalDate, pageSize: Int, onPage: suspend () -> Unit = {}) =
++        try {
++            client.list(spec.dataType, filter = "${spec.filterName}.date >= \"$since\"", pageSize = pageSize, onPage = onPage)
++        } catch (e: HealthApiException) {
++            if (e.httpCode != 400 || e.isAccountNotLinked) throw e
++            client.list(spec.dataType, pageSize = 1000, onPage = onPage)
++        }
++
+     private suspend fun updateTrackerSync() {
+         try {
+-            Parsers.lastTrackerSync(client.pairedDevices())?.let { store.setLastTrackerSync(it) }
++            Parsers.lastTrackerSync(client.pairedDevices())?.let { checkNotAborted(); store.setLastTrackerSync(it) }
+         } catch (e: HealthApiException) {
+             // Optional: the paired-devices call may need a permission the user did not grant.
+-            if (e.isTransient) throw e
++            if (e.isTransient || e.isUnauthorized) throw e
+         }
+     }
+ 
+@@ -141,11 +219,10 @@ class SyncEngine(
+         // 2) Every other daily total over [earliest, recentStart).
+         val others = DAILY_ROLLUPS.filter { it.metric != Metric.STEPS }
+         val chunks = others.flatMap { spec -> chunk(earliest, recentStart, spec.maxDays).map { spec to it } }
+-        val listSteps = DAILY_LISTS.size + 2 // + sleep + workouts
+-        val total = (chunks.size + listSteps).coerceAtLeast(1)
++        val total = (chunks.size + DAILY_LISTS.size + 2).coerceAtLeast(1)
+         var done = 0
+         for ((spec, range) in chunks) {
+-            saveDaily(fetchRollup(spec, range.first, range.second))
++            optional(spec.dataType) { saveDaily(fetchRollup(spec, range.first, range.second)) }
+             done++
+             store.setRunning("Downloading history (${monthLabel(range.first)})…", done.toFloat() / total)
+             pace()
+@@ -153,16 +230,19 @@ class SyncEngine(
+ 
+         // 3) Daily health metrics, sleep and workouts since the start of history.
+         for (spec in DAILY_LISTS) {
+-            val points = client.list(spec.dataType, filter = "${spec.filterName}.date >= \"$earliest\"", pageSize = 1000) { pace() }
+-            saveDaily(Parsers.dailyList(spec, points))
++            optional(spec.dataType) {
++                saveDaily(Parsers.dailyList(spec, listDaily(spec, earliest, pageSize = 1000) { pace() }))
++            }
+             done++
+             store.setRunning("Downloading heart and recovery history…", done.toFloat() / total)
+         }
+         store.setRunning("Downloading sleep history…", done.toFloat() / total)
+-        saveSleep(since = earliest, slow = true); done++
++        optional("sleep") { saveSleep(since = earliest, slow = true) }
++        done++
+         store.setRunning("Downloading workout history…", done.toFloat() / total)
+-        saveWorkouts(since = earliest, slow = true)
++        optional("exercise") { saveWorkouts(since = earliest, slow = true) }
+ 
++        checkNotAborted()
+         store.setBackfillDone(earliest)
+     }
+ 
+@@ -186,6 +266,7 @@ class SyncEngine(
+         }
+ 
+     private suspend fun saveDaily(values: List<DailyValue>) {
++        checkNotAborted()
+         if (values.isNotEmpty()) dao.upsertDaily(values.map { DailyMetricEntity(it.date.toString(), it.metric, it.value) })
+     }
+ 
+@@ -194,7 +275,11 @@ class SyncEngine(
+             if (slow) pace()
+         }
+         val z = zone()
+-        dao.upsertSleep(points.mapNotNull { Parsers.sleep(it, z) }.map { it.session.toEntity(it.wakeDate) })
++        val rows = points.mapNotNull { Parsers.sleep(it, z) }
++            .filter { it.wakeDate >= since }
++            .map { it.session.toEntity(it.wakeDate) }
++        checkNotAborted()
++        dao.replaceSleepFrom(since.toString(), rows)
+     }
+ 
+     private suspend fun saveWorkouts(since: LocalDate, slow: Boolean = false) {
+@@ -202,29 +287,36 @@ class SyncEngine(
+             if (slow) pace()
+         }
+         val z = zone()
+-        dao.upsertWorkouts(points.mapNotNull { Parsers.exercise(it, z) }.map { it.workout.toEntity(it.startDate) })
++        val rows = points.mapNotNull { Parsers.exercise(it, z) }
++            .filter { it.startDate >= since }
++            .map { it.workout.toEntity(it.startDate) }
++        checkNotAborted()
++        dao.replaceWorkoutsFrom(since.toString(), rows)
++    }
++
++    /** Local day [date] as a physical time range. Handles 23- and 25-hour days (DST). */
++    internal fun dayRange(date: LocalDate): Pair<Instant, Instant> {
++        val z = zone()
++        return date.atStartOfDay(z).toInstant() to date.plusDays(1).atStartOfDay(z).toInstant()
+     }
+ 
+     /** Heart rate for one local day as 5-minute averages (rollUp, field beatsPerMinuteAvg). */
+     suspend fun fetchHeartRate(date: LocalDate) {
+-        val z = zone()
+-        val start = date.atStartOfDay(z).toInstant()
+-        val end = date.plusDays(1).atStartOfDay(z).toInstant()
++        val (start, end) = dayRange(date)
+         val rows = client.rollUp("heart-rate", start, end, 300, "heartRate").mapNotNull { p ->
+             val avg = p.value.num("beatsPerMinuteAvg") ?: return@mapNotNull null
+             val t = p.start ?: return@mapNotNull null
+             HeartRateEntity(t.epochSecond, date.toString(), avg.roundToInt())
+         }
+-        dao.deleteHeartRate(date.toString())
+-        dao.upsertHeartRate(rows)
++        checkNotAborted()
++        dao.replaceHeartRate(date.toString(), rows)
+         dao.upsertFetched(FetchedDayEntity(date.toString(), KIND_HR, clock.millis()))
+     }
+ 
+-    /** Steps per local hour (rollUp with 3600s windows, field countSum). */
++    /** Steps per local hour (rollUp with 3600s windows, field countSum). On the 25-hour DST day the repeated hour is added up. */
+     suspend fun fetchHourlySteps(date: LocalDate) {
++        val (start, end) = dayRange(date)
+         val z = zone()
+-        val start = date.atStartOfDay(z).toInstant()
+-        val end = date.plusDays(1).atStartOfDay(z).toInstant()
+         val byHour = HashMap<Int, Long>()
+         client.rollUp("steps", start, end, 3600, "steps").forEach { p ->
+             val t = p.start ?: return@forEach
+@@ -232,23 +324,26 @@ class SyncEngine(
+             val hour = t.atZone(z).hour
+             byHour[hour] = (byHour[hour] ?: 0L) + steps
+         }
+-        dao.upsertHourly(byHour.map { (h, s) -> HourlyStepsEntity(date.toString(), h, s) })
++        checkNotAborted()
++        dao.replaceHourly(date.toString(), byHour.map { (h, s) -> HourlyStepsEntity(date.toString(), h, s) })
+         dao.upsertFetched(FetchedDayEntity(date.toString(), KIND_HOURLY, clock.millis()))
+     }
+ 
+     /**
+      * Fetches heart rate or hourly steps for a day the screens asked about, unless we already have
+-     * a complete copy. Errors are ignored here; the next full sync reports them.
++     * a complete copy. Errors are ignored here (for example offline); the next full sync reports them.
+      */
+-    suspend fun ensureDetail(date: LocalDate, kind: String) = detailLock.withLock {
+-        if (date > today()) return@withLock
+-        val fetched = dao.fetched(date.toString(), kind)
+-        if (!needsFetch(date, fetched?.fetchedAtMs)) return@withLock
+-        try {
+-            if (kind == KIND_HR) fetchHeartRate(date) else fetchHourlySteps(date)
+-        } catch (e: CancellationException) {
+-            throw e
+-        } catch (_: Exception) {
++    suspend fun ensureDetail(date: LocalDate, kind: String) {
++        if (abortRequested || date > today()) return
++        detailLock.withLock {
++            val fetched = dao.fetched(date.toString(), kind)
++            if (!needsFetch(date, fetched?.fetchedAtMs)) return@withLock
++            try {
++                if (kind == KIND_HR) fetchHeartRate(date) else fetchHourlySteps(date)
++            } catch (e: CancellationException) {
++                throw e
++            } catch (_: Exception) {
++            }
+         }
+     }
+ 
+@@ -260,11 +355,14 @@ class SyncEngine(
+         else fetchedAt < date.plusDays(2).atStartOfDay(zone()).toInstant()
+     }
+ 
+-    private fun monthLabel(d: LocalDate): String = d.format(MONTH)
++    /** Data types skipped in the last run (for diagnostics). */
++    val lastSkipped: List<String> get() = skipped.toList()
++
++    /** Reads the locale each time, so a language change applies without restarting. */
++    private fun monthLabel(d: LocalDate): String = d.format(DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault()))
+ 
+     companion object {
+         const val KIND_HR = "hr"
+         const val KIND_HOURLY = "hourly"
+-        private val MONTH = DateTimeFormatter.ofPattern("MMM yyyy", Locale.getDefault())
+     }
+ }
+diff --git a/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncWorker.kt b/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncWorker.kt
+index 4938ef4..0a043d4 100644
+--- a/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncWorker.kt
++++ b/android/app/src/main/java/com/fitbittrack/pulse/sync/SyncWorker.kt
+@@ -21,7 +21,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
+     override suspend fun doWork(): Result {
+         val backfill = inputData.getBoolean(KEY_BACKFILL, true)
+         return when (PulseGraph.engine(applicationContext).sync(includeBackfill = backfill)) {
+-            SyncEngine.Outcome.OK -> Result.success()
++            SyncEngine.Outcome.OK, SyncEngine.Outcome.ABORTED -> Result.success()
+             SyncEngine.Outcome.RETRY_LATER -> if (runAttemptCount < 5) Result.retry() else Result.failure()
+             SyncEngine.Outcome.NEEDS_SIGN_IN, SyncEngine.Outcome.FAILED -> Result.failure()
+         }

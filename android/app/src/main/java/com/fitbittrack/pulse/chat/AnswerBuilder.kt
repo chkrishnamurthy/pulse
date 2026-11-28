@@ -77,7 +77,8 @@ object AnswerBuilder {
 
     fun build(route: Route.Data, d: ChatData): Answer = when (route.topic) {
         Topic.Workouts -> workouts(route, d)
-        Topic.Overview -> overview(d)
+        // Strength questions are answered by TrainingAnswers; the router never gives this topic.
+        Topic.Overview, Topic.Strength -> overview(d)
         else -> metric(route, d, series(route.topic, d))
     }
 
@@ -118,7 +119,7 @@ object AnswerBuilder {
             Topic.Spo2 -> of(MetricKind.Spo2, "a night")
             Topic.Breathing -> of(MetricKind.Breathing, "a night")
             Topic.SkinTemp -> of(MetricKind.SkinTemp, "a night")
-            Topic.Workouts, Topic.Overview -> error("not a single series")
+            Topic.Workouts, Topic.Overview, Topic.Strength -> error("not a single series")
         }
     }
 
@@ -375,7 +376,7 @@ object Ideas {
         Topic.Steps, Topic.Calories, Topic.Distance, Topic.Floors -> move
         Topic.RestingHeart, Topic.Hrv -> heart
         Topic.Spo2, Topic.Breathing, Topic.SkinTemp -> body
-        Topic.Zone, Topic.Workouts, Topic.Fitness -> fit
+        Topic.Zone, Topic.Workouts, Topic.Fitness, Topic.Strength -> fit
         Topic.Overview -> listOf(sleep[0], move[0], heart[0])
     }
 }
@@ -398,6 +399,6 @@ object Suggestions {
         Topic.Hrv -> listOf("Is my resting heart rate normal for me?", "How did I sleep this week?")
         Topic.Workouts, Topic.Zone, Topic.Fitness -> listOf("Did I reach my zone minutes goal this week?", "How fit am I?")
         Topic.Spo2, Topic.Breathing, Topic.SkinTemp -> listOf("How did I sleep this week?", "How is my HRV?")
-        Topic.Floors, Topic.Overview -> start.take(2)
+        Topic.Floors, Topic.Overview, Topic.Strength -> start.take(2)
     }
 }

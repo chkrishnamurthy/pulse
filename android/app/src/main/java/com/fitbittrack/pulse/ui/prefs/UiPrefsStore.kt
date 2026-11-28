@@ -53,6 +53,9 @@ class UiPrefsStore(private val context: Context) {
         Session(p[connectedKey] ?: false, p[accountKey])
     }
 
+    /** The old AI's "download on Wi-Fi only" choice. The AI is gone, so its setting goes too. */
+    suspend fun forgetOldAiSetting() = context.uiPrefsStore.edit { it.remove(booleanPreferencesKey("chat_wifi_only")) }
+
     suspend fun setConnected(accountName: String?) = context.uiPrefsStore.edit {
         it[connectedKey] = true
         if (accountName != null) it[accountKey] = accountName else it.remove(accountKey)
@@ -178,8 +181,11 @@ internal fun decodeTodayCards(s: String): List<Pair<TodayCard, Boolean>> {
     }
     // Saved by the older Today screen, whose cards are gone: start fresh, but keep a hidden air card hidden.
     if (saved.none { it.first != TodayCard.Air }) return UiPrefs().todayCards.map { (c, on) -> c to (saved.firstOrNull { it.first == c }?.second ?: on) }
-    // Cards added in a later app version are appended, switched off.
-    return saved + TodayCard.entries.filter { c -> saved.none { it.first == c } }.map { it to false }
+    // The Training card came later and is meant to be seen: it goes right behind the circle, switched on.
+    val withTrain = if (saved.any { it.first == TodayCard.Train }) saved
+    else saved.toMutableList().apply { add(indexOfFirst { it.first == TodayCard.Ring } + 1, TodayCard.Train to true) }
+    // Other cards added in a later app version are appended, switched off.
+    return withTrain + TodayCard.entries.filter { c -> withTrain.none { it.first == c } }.map { it to false }
 }
 
 internal fun decodeRingGoals(s: String?): Set<GoalMetric> =

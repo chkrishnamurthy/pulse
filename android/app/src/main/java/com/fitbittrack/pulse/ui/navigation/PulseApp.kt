@@ -1,21 +1,17 @@
 package com.fitbittrack.pulse.ui.navigation
 
+import android.widget.Toast
 import androidx.activity.BackEventCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -32,8 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -43,11 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavBackStackEntry
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
@@ -56,14 +46,17 @@ import com.fitbittrack.pulse.ConfigSaver
 import com.fitbittrack.pulse.MainViewModel
 import com.fitbittrack.pulse.UiState
 import com.fitbittrack.pulse.chat.CHAT_FILE
-import com.fitbittrack.pulse.chat.ChatData
-import android.widget.Toast
 import com.fitbittrack.pulse.chat.ChatPrefs
 import com.fitbittrack.pulse.chat.ChatStore
 import com.fitbittrack.pulse.chat.ChatViewModel
+import com.fitbittrack.pulse.chat.TrainingAnswers
+import com.fitbittrack.pulse.chat.loadChatData
+import com.fitbittrack.pulse.chat.loadTrainingChat
 import com.fitbittrack.pulse.direct.GoogleHealthApp
 import com.fitbittrack.pulse.direct.LiveState
-import com.fitbittrack.pulse.domain.HealthRepository
+import com.fitbittrack.pulse.reminders.ReminderPrefs
+import com.fitbittrack.pulse.reminders.Reminders
+import com.fitbittrack.pulse.training.TrainingGraph
 import com.fitbittrack.pulse.ui.AirViewModel
 import com.fitbittrack.pulse.ui.DashboardViewModel
 import com.fitbittrack.pulse.ui.DataLayerBridge
@@ -72,12 +65,13 @@ import com.fitbittrack.pulse.ui.components.FitText
 import com.fitbittrack.pulse.ui.components.PulseIcons
 import com.fitbittrack.pulse.ui.model.HomeLive
 import com.fitbittrack.pulse.ui.model.MetricKind
+import com.fitbittrack.pulse.ui.model.PersonalPrefs
 import com.fitbittrack.pulse.ui.model.ReportRange
-import com.fitbittrack.pulse.ui.model.Units
+import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.prefs.UiPrefsStore
 import com.fitbittrack.pulse.ui.screens.ActivityScreen
-import com.fitbittrack.pulse.ui.model.TodayCard
 import com.fitbittrack.pulse.ui.screens.AirScreen
+import com.fitbittrack.pulse.ui.screens.CalendarGoalsScreen
 import com.fitbittrack.pulse.ui.screens.CalendarScreen
 import com.fitbittrack.pulse.ui.screens.ChatScreen
 import com.fitbittrack.pulse.ui.screens.ChatSettingsScreen
@@ -88,39 +82,44 @@ import com.fitbittrack.pulse.ui.screens.FasterDataCard
 import com.fitbittrack.pulse.ui.screens.GoalsScreen
 import com.fitbittrack.pulse.ui.screens.HealthScreen
 import com.fitbittrack.pulse.ui.screens.HeartScreen
+import com.fitbittrack.pulse.ui.screens.KnowMeScreen
 import com.fitbittrack.pulse.ui.screens.LiveHeartScreen
 import com.fitbittrack.pulse.ui.screens.MetricScreen
+import com.fitbittrack.pulse.ui.screens.MyBandScreen
+import com.fitbittrack.pulse.ui.screens.RemindersScreen
 import com.fitbittrack.pulse.ui.screens.SleepScreen
 import com.fitbittrack.pulse.ui.screens.SyncScreen
 import com.fitbittrack.pulse.ui.screens.TodayScreen
 import com.fitbittrack.pulse.ui.screens.TrendsScreen
-import com.fitbittrack.pulse.ui.screens.YouScreen
-import com.fitbittrack.pulse.ui.screens.rememberNow
-import com.fitbittrack.pulse.ui.screens.KnowMeScreen
-import com.fitbittrack.pulse.ui.screens.RemindersScreen
-import com.fitbittrack.pulse.ui.screens.MyBandScreen
-import com.fitbittrack.pulse.reminders.ReminderPrefs
-import com.fitbittrack.pulse.reminders.Reminders
-import com.fitbittrack.pulse.ui.screens.CalendarGoalsScreen
-import com.fitbittrack.pulse.ui.model.PersonalPrefs
 import com.fitbittrack.pulse.ui.screens.WidgetGalleryScreen
 import com.fitbittrack.pulse.ui.screens.WidgetSetupScreen
+import com.fitbittrack.pulse.ui.screens.YouScreen
+import com.fitbittrack.pulse.ui.screens.rememberNow
+import com.fitbittrack.pulse.ui.training.MoveDialog
+import com.fitbittrack.pulse.ui.training.TrainHost
+import com.fitbittrack.pulse.ui.training.TrainTodayCard
+import com.fitbittrack.pulse.ui.training.TrainingFilesViewModel
+import com.fitbittrack.pulse.ui.training.TrainingViewModel
+import com.fitbittrack.pulse.ui.training.WorkoutCalendar
+import com.fitbittrack.pulse.ui.training.calendarActions
+import com.fitbittrack.pulse.ui.training.trainingPages
 import com.fitbittrack.pulse.ui.widget.art.ArtWidgets
 import com.fitbittrack.pulse.ui.widget.art.WidgetConfig
 import com.fitbittrack.pulse.ui.widget.art.WidgetDesign
 import com.fitbittrack.pulse.ui.widget.art.WidgetOpen
 import com.fitbittrack.pulse.ui.widget.art.WidgetStore
 import com.fitbittrack.pulse.ui.widget.art.WidgetTap
-import kotlinx.coroutines.Dispatchers
+import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
-import kotlin.reflect.KClass
 
 /** The five tabs. Each tab has one first page; pages opened from it sit on top of it. */
 private data class Tab(val route: Any, val type: KClass<*>, val label: String, val icon: ImageVector)
+
+/** Pages that always hide the tab bar. Others hide it while open via `barless`. */
+private val fullScreen = listOf(ConnectRoute::class, LiveHeartRoute::class, ChatRoute::class)
 
 private val tabs = listOf(
     Tab(TodayRoute, TodayRoute::class, "Today", PulseIcons.Today),
@@ -134,7 +133,7 @@ private val tabs = listOf(
 fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? = null, onWidgetOpened: () -> Unit = {}) {
     // Wait until we know whether an account was connected before, so Connect never flashes.
     if (state.auth is AuthState.Checking) {
-        Loading(PaddingValues())
+        LoadingPage(PaddingValues())
         return
     }
 
@@ -143,6 +142,8 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
     val dash: DashboardViewModel = viewModel()
     val direct: DirectViewModel = viewModel()
     val air: AirViewModel = viewModel()
+    val train: TrainingViewModel = viewModel()
+    val trainFiles: TrainingFilesViewModel = viewModel()
     val signedIn = state.auth is AuthState.SignedIn
 
     // Real (cached) data whenever an account is connected, even offline; sample data otherwise.
@@ -185,18 +186,21 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
     }
     // Full-screen pages still on screen, also while one is being swiped away: the bar waits until it is gone.
     var barless by remember { mutableIntStateOf(0) }
-    val showBar = destination != null && !destination.hasRoute<ConnectRoute>() && !destination.hasRoute<LiveHeartRoute>() && !destination.hasRoute<ChatRoute>() && barless == 0
+    val showBar = destination != null && barless == 0 && fullScreen.none { destination.hasRoute(it) }
+
+    val uiPrefs = remember { UiPrefsStore(context.applicationContext) }
+    // For saves started by a tap: they finish even if the page closes right after.
+    val scope = rememberCoroutineScope()
 
     // ---------- Ask Pulse ----------
-    val uiPrefs = remember { UiPrefsStore(context.applicationContext) }
-    val chatScope = rememberCoroutineScope()
     val chat: ChatViewModel = viewModel(factory = viewModelFactory {
         initializer {
             ChatViewModel(
-                data = { day -> chatData(dash.repository, day, uiPrefs.prefs.first().units) },
+                data = { day -> loadChatData(dash.repository, day, uiPrefs.prefs.first().units) },
                 // Sample chats are never kept.
                 prefs = { uiPrefs.chat.first().let { if (dash.isSample.value) it.copy(keep = false) else it } },
                 store = ChatStore(File(context.applicationContext.noBackupFilesDir, CHAT_FILE)),
+                training = { q, day -> TrainingAnswers.answer(q, loadTrainingChat(TrainingGraph.repository(context.applicationContext), day)) },
             )
         }
     })
@@ -213,6 +217,18 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
     val reminders by remember { uiPrefs.reminders }.collectAsStateWithLifecycle(ReminderPrefs())
     LaunchedEffect(reminders) { Reminders.apply(context.applicationContext, reminders) }
 
+    // ---------- training ----------
+    var workoutsChip by rememberSaveable { mutableStateOf(false) }
+    val trainHost = remember(nav, train, trainFiles, direct) {
+        TrainHost(
+            nav, train, trainFiles, direct,
+            isSample = { dash.isSample.value },
+            heart = { dash.repository.savedHeartRate(it) },
+            showWorkouts = { workoutsChip = true },
+            barless = { barless += it },
+        )
+    }
+
     val openMetric: (MetricKind) -> Unit = { nav.open(MetricRoute(it.name)) }
     val openDay: (LocalDate) -> Unit = { nav.open(DayRoute(it.toEpochDay())) }
 
@@ -220,7 +236,10 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
     LaunchedEffect(widgetOpen, destination != null) {
         if (widgetOpen == null || destination == null) return@LaunchedEffect
         onWidgetOpened()
-        if (destination.hasRoute<ConnectRoute>()) return@LaunchedEffect
+        // Training needs no account: its notification and widget open also before one is connected.
+        if (destination.hasRoute<ConnectRoute>()) {
+            if (widgetOpen.tap == WidgetTap.Train) nav.goHome() else return@LaunchedEffect
+        }
         nav.openTab(TodayRoute)
         when (widgetOpen.tap) {
             WidgetTap.Today -> Unit
@@ -229,6 +248,11 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
             WidgetTap.Heart -> nav.open(HeartRoute)
             WidgetTap.Trends -> nav.openTab(TrendsRoute)
             WidgetTap.Ask -> nav.open(ChatRoute(widgetOpen.question))
+            // In its own scope: this effect ends as soon as the tap is marked as handled.
+            WidgetTap.Train -> {
+                nav.open(TrainRoute)
+                scope.launch { if (train.hasOpenWorkout()) nav.open(LiveWorkoutRoute) }
+            }
         }
     }
 
@@ -319,19 +343,33 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                         onOpenBand = { nav.open(MyBandRoute) },
                         onOpenAir = { nav.open(AirRoute) },
                         onAsk = ask,
+                        train = {
+                            val home by train.home.collectAsStateWithLifecycle()
+                            TrainTodayCard(home, onOpen = { nav.open(TrainRoute) }, onStart = {
+                                when {
+                                    home?.active != null -> nav.open(LiveWorkoutRoute)
+                                    else -> home?.plan?.next?.let { nav.open(BeforeRoute(it.id)) }
+                                }
+                            })
+                        },
                     )
-                } ?: Loading(padding)
+                } ?: LoadingPage(padding)
             }
             page<CalendarRoute> {
                 val month by dash.calendarUi.collectAsStateWithLifecycle()
+                val workouts by train.workoutMonth.collectAsStateWithLifecycle()
+                var moving by rememberSaveable { mutableStateOf<String?>(null) }
                 month?.let {
                     CalendarScreen(
                         ui = it, units = state.prefs.units, isSample = isSample, contentPadding = padding,
                         onConnect = viewModel::connect,
                         onMetric = dash::setCalendarMetric, onMonth = dash::setCalendarMonth, onDay = openDay,
                         onEditGoals = { nav.open(GoalsRoute) },
+                        workoutsOn = workoutsChip, onWorkouts = { on -> workoutsChip = on },
+                        workouts = { workouts?.let { w -> WorkoutCalendar(w, trainHost.calendarActions { id -> moving = id }) } },
                     )
-                } ?: Loading(padding)
+                } ?: LoadingPage(padding)
+                moving?.let { id -> trainHost.MoveDialog(id) { moving = null } }
             }
             page<HealthRoute> {
                 val hub by dash.hubUi.collectAsStateWithLifecycle()
@@ -342,7 +380,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                         onMetric = openMetric, onHeart = { nav.open(HeartRoute) }, onSleep = { nav.open(SleepRoute) },
                         onWorkouts = { nav.open(ActivityRoute) }, onLiveHeart = { nav.open(LiveHeartRoute) },
                     )
-                } ?: Loading(padding)
+                } ?: LoadingPage(padding)
             }
             page<TrendsRoute> {
                 val range by dash.reportRangeState.collectAsStateWithLifecycle()
@@ -357,11 +395,11 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                     state = state, sync = sync, isSample = isSample, contentPadding = padding,
                     onConnect = viewModel::connect,
                     onReminders = { nav.open(RemindersRoute) }, onBand = { nav.open(MyBandRoute) },
-                    remindersLabel = listOfNotNull("Evening".takeIf { reminders.eveningOn }, "Bedtime".takeIf { reminders.bedtimeOn }, "Morning".takeIf { reminders.morningOn }).ifEmpty { listOf("All off") }.joinToString(", "),
+                    remindersLabel = reminders.timedSummary,
                     onKnowMe = { nav.open(KnowMeRoute) }, onCalendarGoals = { nav.open(CalendarGoalsRoute) },
                     calendarGoalsLabel = personal.calendarGoals.sortedBy { it.ordinal }.joinToString(", ") { it.label },
                     onGoals = { nav.open(GoalsRoute) }, onCustomize = { nav.open(CustomizeRoute) }, onSync = { nav.open(SyncRoute) },
-                    onChat = { nav.open(ChatSettingsRoute) }, onWidgets = { nav.open(WidgetsRoute) },
+                    onChat = { nav.open(ChatSettingsRoute) }, onWidgets = { nav.open(WidgetsRoute) }, onTraining = { nav.open(TrainSettingsRoute) },
                     onThemeChange = { viewModel.setTheme(it) }, onPrefsChange = { viewModel.setPrefs(it) },
                 )
             }
@@ -407,7 +445,8 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
             }
             page<ActivityRoute> {
                 val activity by dash.activityUi.collectAsStateWithLifecycle()
-                ActivityScreen(activity, state.prefs.units, padding, onBack = { nav.back() })
+                val trained by train.progress.collectAsStateWithLifecycle()
+                ActivityScreen(activity, state.prefs.units, padding, onBack = { nav.back() }, inTrain = { w -> trained?.sameVisit(w.startMs, w.endMs)?.title })
             }
             page<GoalsRoute> {
                 GoalsScreen(goals = goals, units = state.prefs.units, contentPadding = padding, onBack = { nav.back() }, onGoalsChange = { dash.setGoals(it) })
@@ -419,16 +458,16 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                 airOn?.let { AirScreen(it, airState, state.prefs.units, padding, onBack = { nav.back() }, onEnable = air::setEnabled, onRefresh = air::refresh) }
             }
             page<RemindersRoute> {
-                RemindersScreen(reminders, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setReminders(it) } }
+                RemindersScreen(reminders, padding, onBack = { nav.back() }) { scope.launch { uiPrefs.setReminders(it) } }
             }
             page<MyBandRoute> {
-                MyBandScreen(sync, isSample, reminders, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setReminders(it) } }
+                MyBandScreen(sync, isSample, reminders, padding, onBack = { nav.back() }) { scope.launch { uiPrefs.setReminders(it) } }
             }
             page<KnowMeRoute> {
-                KnowMeScreen(personal, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setPersonal(it) } }
+                KnowMeScreen(personal, padding, onBack = { nav.back() }) { scope.launch { uiPrefs.setPersonal(it) } }
             }
             page<CalendarGoalsRoute> {
-                CalendarGoalsScreen(personal.calendarGoals, goals, state.prefs.units, padding, onBack = { nav.back() }) { chatScope.launch { uiPrefs.setPersonal(personal.copy(calendarGoals = it)) } }
+                CalendarGoalsScreen(personal.calendarGoals, goals, state.prefs.units, padding, onBack = { nav.back() }) { scope.launch { uiPrefs.setPersonal(personal.copy(calendarGoals = it)) } }
             }
             page<CustomizeRoute> {
                 CustomizeScreen(prefs = state.prefs, contentPadding = padding, onBack = { nav.back() }, onPrefsChange = { viewModel.setPrefs(it) })
@@ -459,7 +498,7 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                     onAction = { data ->
                         if (saved != null) {
                             store.save(route.id, config)
-                            chatScope.launch { ArtWidgets.refreshAll(context.applicationContext) }
+                            scope.launch { ArtWidgets.refreshAll(context.applicationContext) }
                             nav.back()
                         } else if (ArtWidgets.pin(context, config, data)) {
                             before = ArtWidgets.count(context)
@@ -488,10 +527,11 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
                 ChatSettingsScreen(
                     prefs = chatPrefs, contentPadding = padding,
                     onBack = { nav.back() },
-                    onPrefs = { p -> chatScope.launch { uiPrefs.setChat(p) } },
+                    onPrefs = { p -> scope.launch { uiPrefs.setChat(p) } },
                     onDeleteChats = chat::deleteChats,
                 )
             }
+            trainingPages(trainHost, padding)
             page<SyncRoute> {
                 SyncScreen(
                     state = state, sync = sync, contentPadding = padding,
@@ -523,57 +563,4 @@ fun PulseApp(state: UiState, viewModel: MainViewModel, widgetOpen: WidgetOpen? =
             }
         }
     }
-}
-
-/** The last 400 days, for chat. Read once per question. */
-private suspend fun chatData(repo: HealthRepository, day: LocalDate, units: Units): ChatData = withContext(Dispatchers.Default) {
-    val from = day.minusDays(ChatData.HISTORY_DAYS)
-    ChatData(
-        today = day,
-        days = repo.daySummaries(from, day).first(),
-        nights = repo.sleep(from, day).first(),
-        workouts = repo.workouts(from, day).first(),
-        goals = repo.goalHistory.first(),
-        units = units,
-    )
-}
-
-/**
- * A tab tap always shows that tab's first page: every page opened on top is closed, and nothing is saved to be
- * put back later. (Saving and restoring made Today come back as the page opened from it.)
- * Today stays at the bottom, so Back from any tab goes to Today, then leaves the app.
- */
-private fun NavHostController.openTab(route: Any) {
-    if (route == TodayRoute) {
-        if (!popBackStack<TodayRoute>(inclusive = false)) navigate(TodayRoute) { launchSingleTop = true }
-    } else {
-        navigate(route) {
-            popUpTo<TodayRoute>()
-            launchSingleTop = true
-        }
-    }
-}
-
-/** One screen. It has its own solid background, so the screen below never shows through while one replaces the other. */
-private inline fun <reified T : Any> NavGraphBuilder.page(noinline content: @Composable (NavBackStackEntry) -> Unit) = composable<T> { entry ->
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { content(entry) }
-}
-
-/** Opens a page on top of the current one. Double taps open it once. */
-private fun NavHostController.open(route: Any) = navigate(route) { launchSingleTop = true }
-
-/** Back arrow. A second quick tap can't empty the stack. */
-private fun NavHostController.back() {
-    if (previousBackStackEntry != null) popBackStack()
-}
-
-/** Go to Today and remove Connect from the back stack. */
-private fun NavHostController.goHome() = navigate(TodayRoute) {
-    popUpTo<ConnectRoute> { inclusive = true }
-    launchSingleTop = true
-}
-
-@Composable
-private fun Loading(padding: PaddingValues) {
-    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 }

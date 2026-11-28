@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,11 +42,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -116,11 +117,10 @@ fun TodayScreen(
     onOpenBand: () -> Unit,
     onOpenAir: () -> Unit,
     onAsk: (String?) -> Unit,
+    train: @Composable () -> Unit,
 ) {
     val shown = prefs.todayCards.filter { it.second }.map { it.first }
     val goals = week.lastOrNull { it.date == today.date }
-    // Without the air card no location is used, so the circle stays plain.
-    val level = air.reading?.level.takeIf { airOn == true && TodayCard.Air in shown }
     PullToRefreshBox(isRefreshing = sync.running, onRefresh = onRefresh) {
         PulsePage(contentPadding) {
             // Closer together than other pages, so the whole day fits on one screen.
@@ -137,16 +137,15 @@ fun TodayScreen(
                             }
                         }
                         TodayCard.Ring in row -> if (goals != null) {
-                            RingCard(
-                                circle = goals.items.filter { it.metric in prefs.ringGoals },
-                                lines = homeGoals(goals.items, prefs.ringGoals),
-                                bpm = today.latestBpm, bpmAt = today.latestBpmAt, live = live, level = level, units = prefs.units,
-                                onRing = { onDay(today.date) }, onHeart = onOpenHeart,
-                            ) { m -> if (m == GoalMetric.Sleep) onOpenSleep() else onMetric(MetricKind.entries.first { it.goal == m }) }
+                            val onGoal: (GoalMetric) -> Unit = { m -> if (m == GoalMetric.Sleep) onOpenSleep() else onMetric(MetricKind.entries.first { it.goal == m }) }
+                            val now = rememberNow()
+                            StepsCard(goals[GoalMetric.Steps], live, today.stepsPerHour, today.now.hour, prefs.units, now) { onGoal(GoalMetric.Steps) }
+                            GoalsCard(homeGoals(goals.items, prefs.ringGoals), today.latestBpm, today.latestBpmAt, live, prefs.units, now, onOpenHeart, onGoal)
                         }
                         TodayCard.Week in row -> if (goals != null) {
                             WeekCard(week, goals, today.date, onCalendar, onDay)
                         }
+                        TodayCard.Train in row -> train()
                         TodayCard.Tip in row -> today.insight?.let { i ->
                             TipCard(i.title, i.body, i.positive) { onAsk(if ("heart" in i.title.lowercase()) "Is my resting heart rate normal for me?" else "How did I sleep this week?") }
                         }
@@ -169,15 +168,30 @@ internal fun homeRows(cards: List<TodayCard>): List<List<TodayCard>> {
     return rows
 }
 
-/** The goals listed beside the circle: steps, sleep and calories, and anything else that is in the circle, so every arc has its number. */
-internal fun homeGoals(items: List<GoalProgress>, circle: Set<GoalMetric>): List<GoalProgress> {
-    val always = setOf(GoalMetric.Steps, GoalMetric.Sleep, GoalMetric.Calories)
-    return items.filter { it.metric in always || it.metric in circle }
+/** The goals that are always listed under the steps card. */
+internal val HOME_ALWAYS = setOf(GoalMetric.Sleep, GoalMetric.Calories)
+
+/** The goals listed under the steps card: sleep and calories, plus any the user added. Steps has its own card. */
+internal fun homeGoals(items: List<GoalProgress>, extra: Set<GoalMetric>): List<GoalProgress> =
+    items.filter { it.metric != GoalMetric.Steps && (it.metric in HOME_ALWAYS || it.metric in extra) }
+
+/** "2,760 steps to go", "58m short", "Goal reached". Only the band's own count can reach a goal. */
+internal fun goalLeft(metric: GoalMetric, amount: Double?, target: Double, met: Boolean, units: Units): String {
+    if (amount == null) return "No data yet"
+    if (met) return "Goal reached"
+    val left = target - amount
+    return when {
+        left <= 0 -> "Nearly there, waiting for the band"
+        metric == GoalMetric.Sleep -> "${Fmt.minutes(left.toInt())} short"
+        else -> "${goalText(metric, left, units)} to go"
+    }
 }
 
-/** Average of the goals, each counted up to 100. Goals without data are left out, so missing data never lowers the day. */
-internal fun dayPercent(goals: List<GoalProgress>): Int? =
-    goals.mapNotNull { it.fraction }.takeIf { it.isNotEmpty() }?.let { f -> f.sumOf { (it.coerceIn(0f, 1f) * 100).toInt() } / f.size }
+/** Steps per hour as bar heights from 0 to 1 against the busiest hour. Null = later than now, or no data. */
+internal fun hourBars(perHour: List<Long?>, nowHour: Int): List<Float?> {
+    val most = perHour.filterIndexed { h, _ -> h <= nowHour }.maxOfOrNull { it ?: 0L } ?: 0L
+    return perHour.mapIndexed { h, s -> if (h > nowHour || s == null) null else if (most <= 0) 0f else s.toFloat() / most }
+}
 
 /** "Steps and calories", "Steps, sleep and calories". */
 internal fun joinWords(words: List<String>): String {
@@ -238,72 +252,87 @@ private fun FirstSyncCard(sync: SyncUi) {
     }
 }
 
-// ---------- ring, air circle and goals ----------
+// ---------- steps and goals ----------
 
+/** The big card: today's steps as a number and a ring, what is left, and steps by hour. */
 @Composable
-private fun RingCard(
-    circle: List<GoalProgress>, lines: List<GoalProgress>, bpm: Int?, bpmAt: Instant?, live: HomeLive, level: AirLevel?, units: Units,
-    onRing: () -> Unit, onHeart: () -> Unit, onGoal: (GoalMetric) -> Unit,
-) {
-    val now = rememberNow()
-    val rows: @Composable () -> Unit = {
-        lines.forEach { g -> GoalLine(g, live, units, now, Modifier.fillMaxWidth()) { onGoal(g.metric) } }
-        HeartLine(bpm, bpmAt, live.bpm, now, Modifier.fillMaxWidth(), onHeart)
+private fun StepsCard(g: GoalProgress, live: HomeLive, perHour: List<Long?>, nowHour: Int, units: Units, now: Instant, onClick: () -> Unit) {
+    val c = PulseTheme.colors
+    val scheme = MaterialTheme.colorScheme
+    val look = goalLook(g, live, now)
+    val tone = g.metric.tone
+    val count = look.amount?.let { Fmt.whole(it) } ?: Fmt.NONE
+    val target = Fmt.whole(g.target)
+    val left = goalLeft(g.metric, look.amount, g.target, g.met, units)
+    val fraction = look.amount?.let { if (g.target <= 0) 1f else (it / g.target).toFloat() } ?: 0f
+    val say = if (look.amount == null) "Steps: no data yet." else "Steps: $count of $target. $left."
+    Column(
+        Modifier.fillMaxWidth().clip(CardShape).background(scheme.surfaceContainer)
+            .clickable(role = Role.Button, onClickLabel = "Open steps", onClick = onClick)
+            .clearAndSetSemantics { contentDescription = say }
+            .padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val size = if (largeText()) minOf(260.dp, maxWidth) else minOf(220.dp, maxWidth * 0.66f)
+            Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.size(size)) {
+                    val w = 16.dp.toPx()
+                    val at = Offset(w / 2, w / 2)
+                    val box = Size(this.size.width - w, this.size.height - w)
+                    drawArc(c.track, 0f, 360f, false, at, box, style = Stroke(w))
+                    val f = fraction.coerceIn(0f, 1f)
+                    if (f > 0.01f) drawArc(c.fill(tone), -90f, 360f * f, false, at, box, style = Stroke(w, cap = StrokeCap.Round))
+                }
+                Column(Modifier.width(size * 0.7f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    FitText("Steps", MaterialTheme.typography.labelLarge, c.label(tone))
+                    FitText(count, MaterialTheme.typography.headlineMedium.copy(fontSize = 48.sp, lineHeight = 54.sp), scheme.onSurface)
+                    FitText("of $target", MaterialTheme.typography.bodyMedium, scheme.onSurfaceVariant)
+                    look.age?.let { age ->
+                        FitText(
+                            if (age == LIVE) "● Live" else if (age == "now") "Just now" else "$age ago",
+                            MaterialTheme.typography.labelMedium, if (age == LIVE) c.good else scheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+        Text(left, style = MaterialTheme.typography.titleSmall, color = if (g.met) c.good else scheme.onSurface)
+        val bars = hourBars(perHour, nowHour)
+        if (bars.size == 24 && bars.any { it != null }) HourBars(bars, c.fill(tone), c.track)
     }
-    val large = largeText()
-    Box(Modifier.fillMaxWidth().clip(CardShape).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = Space.gap, vertical = 8.dp)) {
-        BoxWithConstraints {
-            val room = maxWidth
-            if (large || room < 290.dp) {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.gap)) {
-                    AirRing(circle, level, 196.dp, onRing)
-                    rows()
-                }
-            } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    AirRing(circle, level, minOf(196.dp, room * 0.54f), onRing)
-                    Column(Modifier.weight(1f)) { rows() }
-                }
+}
+
+/** 24 thin bars, midnight to midnight, with four time labels under them. */
+@Composable
+private fun HourBars(bars: List<Float?>, color: Color, track: Color) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(44.dp)) {
+            val gap = 3.dp.toPx()
+            val w = (size.width - gap * (bars.size - 1)) / bars.size
+            val low = 2.dp.toPx()
+            bars.forEachIndexed { i, f ->
+                val h = if (f == null) low else maxOf(low, size.height * f)
+                drawRoundRect(if (f == null || f <= 0f) track else color, Offset(i * (w + gap), size.height - h), Size(w, h), CornerRadius(2.dp.toPx()))
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            listOf("12 am", "6 am", "12 pm", "6 pm").forEach {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
-/** One coloured arc per goal on a soft circle in the colour of the air. */
+/** The other goals, each with its real numbers and a bar, then the heart rate. */
 @Composable
-private fun AirRing(goals: List<GoalProgress>, level: AirLevel?, size: Dp, onClick: () -> Unit) {
-    val c = PulseTheme.colors
-    val scheme = MaterialTheme.colorScheme
-    val day = dayPercent(goals)
-    val halo = level?.let { airColor(it).copy(alpha = 0.2f) } ?: scheme.surfaceContainerHigh
-    val card = scheme.surfaceContainer
-    val say = "Your day: ${day?.let { "$it percent" } ?: "no data yet"}. " + (level?.let { "Air outside: ${it.label}." } ?: "")
-    Box(
-        Modifier.size(size).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Open today", onClick = onClick).semantics { contentDescription = say },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(Modifier.size(size)) {
-            val w = 10.dp.toPx()
-            val r = this.size.minDimension / 2 * 0.735f
-            drawCircle(halo)
-            drawCircle(card, r)
-            val at = Offset(center.x - r, center.y - r)
-            val box = Size(r * 2, r * 2)
-            val slot = 360f / goals.size.coerceAtLeast(1)
-            // Room for the round ends, so neighbours never touch.
-            val gap = Math.toDegrees((w * 1.7 / r)).toFloat()
-            goals.forEachIndexed { i, g ->
-                val start = -90f + i * slot + gap / 2
-                val sweep = slot - gap
-                drawArc(c.track, start, sweep, false, at, box, style = Stroke(w, cap = StrokeCap.Round))
-                val f = (g.fraction ?: 0f).coerceIn(0f, 1f)
-                if (f > 0.02f) drawArc(c.fill(g.metric.tone), start, sweep * f, false, at, box, style = Stroke(w, cap = StrokeCap.Round))
-            }
-        }
-        Column(Modifier.width(size * 0.52f), horizontalAlignment = Alignment.CenterHorizontally) {
-            FitText(day?.let { "$it%" } ?: Fmt.NONE, MaterialTheme.typography.headlineMedium.copy(fontSize = 38.sp, lineHeight = 44.sp), scheme.onSurface)
-            FitText("of your day", MaterialTheme.typography.bodyMedium, scheme.onSurfaceVariant)
-        }
+private fun GoalsCard(
+    goals: List<GoalProgress>, bpm: Int?, bpmAt: Instant?, live: HomeLive, units: Units, now: Instant,
+    onHeart: () -> Unit, onGoal: (GoalMetric) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().clip(CardShape).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = Space.gap, vertical = 4.dp)) {
+        goals.forEach { g -> GoalRow(g, live, units, now) { onGoal(g.metric) } }
+        HeartLine(bpm, bpmAt, live.bpm, now, Modifier.fillMaxWidth(), onHeart)
     }
 }
 
@@ -323,31 +352,50 @@ internal fun rememberNow(): Instant {
     return now
 }
 
-/** What a goal line says. Live steps carry a "~"; only the band's own count can say "Done". */
-internal data class GoalLook(val amount: Double?, val about: Boolean, val value: String, val age: String?)
+/** The number a goal shows, and how old it is. [about]: live steps from the phone, ahead of the band. */
+internal data class GoalLook(val amount: Double?, val about: Boolean, val age: String?)
 
 internal fun goalLook(g: GoalProgress, live: HomeLive, now: Instant): GoalLook {
     val quick = live.steps?.takeIf { g.metric == GoalMetric.Steps && it > (g.value ?: 0.0) }
     val fromBand = g.metric == GoalMetric.Steps || g.metric == GoalMetric.Calories
-    val value = when {
-        g.met -> "Done"
-        quick != null && g.target > 0 -> "${(quick / g.target * 100).toInt().coerceAtMost(99)}%"
-        else -> g.percent?.let { "$it%" } ?: Fmt.NONE
-    }
     val age = if (quick != null) LIVE else live.bandUpTo?.takeIf { fromBand && g.value != null }?.let { Fmt.age(it, now) }
-    return GoalLook(quick?.toDouble() ?: g.value, quick != null, value, age)
+    return GoalLook(quick?.toDouble() ?: g.value, quick != null, age)
 }
 
 private const val LIVE = "Live"
 
+/** "Sleep  7h 02m / 8h", a bar, and "58m short" with the age on the right. */
 @Composable
-private fun GoalLine(g: GoalProgress, live: HomeLive, units: Units, now: Instant, modifier: Modifier, onClick: () -> Unit) {
+private fun GoalRow(g: GoalProgress, live: HomeLive, units: Units, now: Instant, onClick: () -> Unit) {
+    val c = PulseTheme.colors
+    val scheme = MaterialTheme.colorScheme
     val look = goalLook(g, live, now)
-    ValueLine(
-        g.metric.label, PulseTheme.colors.label(g.metric.tone),
-        if (look.amount == null) "No data" else (if (look.about) "~" else "") + "${goalValue(g.metric, look.amount, units)} of ${goalValue(g.metric, g.target, units)}",
-        look.value, look.age, modifier, onClick,
-    )
+    val value = goalValue(g.metric, look.amount, units)
+    val target = goalText(g.metric, g.target, units)
+    val left = goalLeft(g.metric, look.amount, g.target, g.met, units)
+    val fraction = look.amount?.let { if (g.target <= 0) 1f else (it / g.target).toFloat() } ?: 0f
+    Column(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(role = Role.Button, onClick = onClick)
+            .clearAndSetSemantics { contentDescription = "${g.metric.label}: " + (if (look.amount == null) "no data yet" else "$value of $target. $left") }
+            .heightIn(min = 48.dp).padding(vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            FitLine(g.metric.label, MaterialTheme.typography.labelLarge, c.label(g.metric.tone), Modifier.weight(1f))
+            Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.alignByBaseline())
+            Text("/ $target", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.alignByBaseline())
+        }
+        ProgressBar(fraction.coerceIn(0f, 1f), c.fill(g.metric.tone), height = 6)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FitLine(left, MaterialTheme.typography.bodySmall, if (g.met) c.good else scheme.onSurfaceVariant, Modifier.weight(1f))
+            look.age?.let { age ->
+                Text(
+                    if (age == LIVE || age == "now") age else "$age ago", style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                    color = if (age == LIVE) c.good else scheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
 
 @Composable

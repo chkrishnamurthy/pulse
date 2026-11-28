@@ -1,0 +1,4 @@
+exercises.json is made from free-exercise-db by yuhonas and others.
+Source: https://github.com/yuhonas/free-exercise-db (commit f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5)
+License: The Unlicense (public domain), https://unlicense.org
+Pictures from that project are not used. Muscles and equipment were grouped for Pulse.

@@ -1,0 +1,446 @@
+<title>Pulse Training Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: same system as the Phase 1-3 guides. One wide 90% column; diagrams and tables scroll in their own boxes; phases are a real sequence */
+:root{
+  --bg:#f5f8f7; --surface:#ffffff; --surface2:#eaf1ef; --fg:#14211e; --muted:#566864; --line:#d3dfdc;
+  --accent:#0d7a6c; --accent-soft:#d6efea; --heart:#c4415a; --heart-soft:#f8e0e5;
+  --ok:#1a7a43; --ok-soft:#dcf2e4; --warn:#8f5a00; --warn-soft:#fbecd0; --bad:#b3362f; --bad-soft:#f7dcd9; --code-bg:#eef3f2;
+  --display:"Manrope",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a; --code-bg:#1a2724; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1715; --surface:#16211e; --surface2:#1c2b27; --fg:#e4eeeb; --muted:#9db1ac; --line:#2b3d39;
+  --accent:#4fc7b4; --accent-soft:#173a34; --heart:#f0839a; --heart-soft:#3d1f27;
+  --ok:#5fd08d; --ok-soft:#173826; --warn:#f0b452; --warn-soft:#3a2c12; --bad:#f08a80; --bad-soft:#3f1d1a; --code-bg:#1a2724; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15.5px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{width:90%;margin:0 auto;padding-block:32px 64px;display:flex;flex-direction:column;gap:44px}
+@media (max-width:700px){.wrap{width:100%}}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:800}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+ul,ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+a{color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 6px;border-radius:5px;overflow-wrap:anywhere}
+.lead{color:var(--muted);font-size:17px;max-width:85ch}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:28px}
+.sec-head p{color:var(--muted)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:32px;align-items:start}
+.hero>div{display:flex;flex-direction:column;gap:14px;min-width:0}
+.answer{background:var(--accent);color:var(--bg);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.answer li::marker{color:var(--bg)}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}
+@media (max-width:900px){.hero,.grid3,.grid2{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.col p,.col li{color:var(--muted);font-size:14.5px}
+.note{border:1px solid var(--bad);background:var(--bad-soft);border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:10px}
+.note.warn{border-color:var(--warn);background:var(--warn-soft)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+figcaption{color:var(--muted);font-size:14px}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto;color:var(--muted)}
+.diagram svg{display:block;width:100%;min-width:900px;height:auto}
+svg text{font-family:var(--body);font-size:13px;fill:var(--fg)}
+svg .m{fill:var(--muted);font-size:12px} svg .t{font-family:var(--display);font-weight:700;font-size:14.5px}
+svg .box{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+svg .acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+svg .bad{fill:var(--bad-soft);stroke:var(--bad);stroke-width:1.5}
+svg .wrn{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:6 4}
+svg .ok{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+svg .ar{stroke:currentColor;stroke-width:1.8;fill:none}
+svg .dash{stroke-dasharray:6 5}
+svg .hd{fill:currentColor}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:11px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-family:var(--display);font-size:13.5px;background:var(--surface2)}
+.phase{display:grid;grid-template-columns:150px minmax(0,1.1fr) minmax(0,1fr);gap:22px;padding-block:20px;border-bottom:1px solid var(--line)}
+.phase:last-child{border-bottom:0}
+.phase>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phase .n{font-family:var(--display);font-weight:800;font-size:20px;color:var(--accent)}
+.phase li{font-size:14.5px}
+.phase .done{color:var(--muted);font-size:14.5px}
+@media (max-width:900px){.phase{grid-template-columns:minmax(0,1fr);gap:10px}}
+.src{columns:2;column-gap:40px;font-size:14px}
+.src li{break-inside:avoid}
+@media (max-width:800px){.src{columns:1}}
+</style>
+
+<main class="wrap">
+
+<header class="hero">
+  <div>
+    <h1>Adding Boostcamp-style training to Pulse</h1>
+    <p class="lead">What is known about Boostcamp's private API, how to connect to it safely, and a step-by-step plan to build plans, a schedule and workout logging inside your own app.</p>
+    <p>Written 24 November 2026 for the Pulse Android app (Kotlin, Compose, Room). I read your code, the code or notes of eight community projects, Boostcamp's terms and public pages. I did not sign in to Boostcamp, call its API or take its app apart.</p>
+  </div>
+  <div class="answer">
+    <h3>The short answer</h3>
+    <ul>
+      <li><strong>Build the training features in Pulse, on your own database.</strong> Do not make Pulse a screen on top of Boostcamp.</li>
+      <li><strong>Use Boostcamp once, as a source of your past data.</strong> You save your own history file in your browser; Pulse reads the file.</li>
+      <li><strong>The private API could not run these features anyway.</strong> None of the eight projects I read has a way to log a workout or change a schedule through it.</li>
+      <li><strong>First step: a second database file.</strong> Pulse's present database erases everything when its layout changes and when you sign out.</li>
+    </ul>
+  </div>
+</header>
+
+<section>
+  <div class="note">
+    <h3>Read this first: Boostcamp's terms do not allow a live connection</h3>
+    <ul>
+      <li>Section 8 bans reverse engineering, and bans manual or automated tools that crawl or scrape. It makes no exception for your own account. Pro does not change this.</li>
+      <li>Section 8 also bans using the platform to “develop a competing Boostcamp Platform or service”. A private tool just for you is a different matter from an app you publish, but it is still their rule to apply. This is not legal advice.</li>
+      <li>Section 17 lets them close an account at once, without notice. The real risk for you is losing the Pro account and its history.</li>
+      <li>Coach programs belong to Boostcamp and the coaches. Do not copy them into Pulse. Bring in only <strong>your own logs</strong> and <strong>programs you wrote</strong>.</li>
+    </ul>
+    <p><strong>Best next move:</strong> write to <code>support@boostcamp.app</code>, ask for an export of your own data and ask if personal API use is allowed. Saving your own history by hand is the lowest-risk way, but the terms do not clearly allow it either, so it is your choice.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>1. What is known about the API</h2><p>Boostcamp has no official API. This is what independent projects agree on, and where they disagree.</p></div>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1120 320" role="img" aria-label="Sign-in happens at Google Firebase, which returns a one-hour ID token and a long-life refresh token. The ID token goes with each Boostcamp request. When it expires, the refresh token buys a new one.">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <rect class="box" x="20" y="110" width="200" height="100" rx="10"/><text class="t" x="120" y="152" text-anchor="middle">Client</text><text class="m" x="120" y="176" text-anchor="middle">browser or wrapper</text>
+        <rect class="box" x="450" y="20" width="250" height="100" rx="10"/><text class="t" x="575" y="56" text-anchor="middle">Firebase sign-in</text><text class="m" x="575" y="80" text-anchor="middle">Google's identity service</text><text class="m" x="575" y="100" text-anchor="middle">email + password, or Google</text>
+        <rect class="box" x="450" y="200" width="250" height="100" rx="10"/><text class="t" x="575" y="236" text-anchor="middle">Firebase token service</text><text class="m" x="575" y="260" text-anchor="middle">securetoken.googleapis.com</text><text class="m" x="575" y="280" text-anchor="middle">swaps refresh → new ID token</text>
+        <rect class="acc" x="900" y="110" width="200" height="100" rx="10"/><text class="t" x="1000" y="146" text-anchor="middle">Boostcamp API</text><text class="m" x="1000" y="170" text-anchor="middle">newapi.boostcamp.app</text><text class="m" x="1000" y="190" text-anchor="middle">/api/www/… all POST</text>
+        <path class="ar" d="M190 110 V56 H450" marker-end="url(#a1)"/><text x="232" y="46">1 sign in</text>
+        <path class="ar" d="M450 96 H216 V110" marker-end="url(#a1)"/><text x="236" y="88">2 ID token (1 hour) + refresh token</text>
+        <path class="ar" d="M220 160 H900" marker-end="url(#a1)"/><text x="560" y="150" text-anchor="middle">3 Authorization: FirebaseIdToken:&lt;ID token&gt;</text>
+        <path class="ar" d="M120 210 V262 H450" marker-end="url(#a1)"/><text x="140" y="254">4 near expiry: refresh token</text>
+        <path class="ar" d="M450 286 H70 V210" marker-end="url(#a1)"/><text x="140" y="306">5 new ID token, maybe new refresh token</text>
+      </svg>
+    </div>
+    <figcaption>The sign-in flow. The header is unusual: the word <code>FirebaseIdToken:</code> sits directly before the token, with no <code>Bearer</code>. The refresh token is as valuable as a password: whoever holds it stays signed in.</figcaption>
+  </figure>
+
+  <div class="tbl"><table>
+    <thead><tr><th>What</th><th>Path after <code>/api/www</code></th><th>Body</th><th>How sure</th></tr></thead>
+    <tbody>
+      <tr><td>Workout history</td><td><code>/programs/history</code></td><td><code>{"timezone_offset": 330}</code> for UTC+5:30. Returns everything at once, grouped by date.</td><td><span class="pill ok">Several projects agree</span></td></tr>
+      <tr><td>Profile and units</td><td><code>/users/get</code></td><td><code>{}</code>; unit is in <code>data.preference.weightUnit</code></td><td><span class="pill ok">Several agree</span></td></tr>
+      <tr><td>Your custom exercises</td><td><code>/user_exercise/list</code></td><td><code>{}</code></td><td><span class="pill ok">Two agree</span></td></tr>
+      <tr><td>Create a custom exercise</td><td><code>/user_exercise/create</code></td><td>name, <code>target_type</code> (reps or time), equipment <code>type</code>, muscles</td><td><span class="pill warn">Body from one project</span></td></tr>
+      <tr><td>Edit a custom exercise</td><td><code>/user_exercise/update</code></td><td>id + same fields. No delete is known.</td><td><span class="pill warn">One project</span></td></tr>
+      <tr><td>All built-in exercises</td><td><code>/master-exercise/list</code></td><td><code>{}</code></td><td><span class="pill warn">One project</span></td></tr>
+      <tr><td>Your programs</td><td><code>/user_programs/list</code> <em>or</em> <code>/programs/user_programs/list</code></td><td><code>{}</code> <em>or</em> <code>{"pagination":{"current":1,"pageSize":200}}</code></td><td><span class="pill warn">Projects disagree</span></td></tr>
+      <tr><td>One of your programs</td><td><code>/programs/user_program/share_detail</code></td><td><code>{"program_id":"…"}</code></td><td><span class="pill warn">One project</span></td></tr>
+      <tr><td>Create or edit a program</td><td><code>/programs/user_program/new_create</code>, <code>…/update</code></td><td>Whole program: <code>title</code>, <code>weeks[]</code>, <code>variations[]</code>. Delete = update with <code>status:"deleted"</code>.</td><td><span class="pill warn">One project; inner shape not documented</span></td></tr>
+      <tr><td>Library programs</td><td><code>/programs/list</code>, <code>/programs/get</code></td><td>page, pageSize, keyword / id</td><td><span class="pill warn">One family of projects</span></td></tr>
+      <tr><td>Dashboard numbers</td><td><code>/home/topSection</code>, <code>/home/programs</code>, <code>/home/chart</code>, <code>/home/muscle</code></td><td><code>timezone_offset</code></td><td><span class="pill warn">One family; Pulse can work these out itself</span></td></tr>
+      <tr><td><strong>Log a workout</strong></td><td>none known</td><td>One guide guessed <code>/user_exercise/create</code>, but another project shows that it makes custom exercises.</td><td><span class="pill bad">Not found</span></td></tr>
+      <tr><td><strong>Schedule or move a workout</strong></td><td>none known</td><td></td><td><span class="pill bad">Not found</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid3">
+    <div class="col"><h3>boostcamp-api</h3><p>Python, by Alex Keyes. Read-only in practice. Not on PyPI. It renews the token only on error 403, not 401, with no lock against two renewals at once. It stores the session in a <code>pickle</code> file, which is unsafe to load if someone changes it.</p><p>Good as: a map of paths. Not as: something to build on.</p></div>
+    <div class="col"><h3>boostcamp-mcp</h3><p>The history tool <strong>fails on every call</strong> in the main branch I read (a missing <code>await</code>; open fix, pull request 7). Once fixed, it still shows <strong>planned</strong> numbers instead of the ones you lifted (issue 8): one session read 570 kg instead of 3,750 kg.</p><p>Best part: its token renewer, with a lock and a 60-second safety margin.</p></div>
+    <div class="col"><h3>n8n-nodes-boostcamp</h3><p>TypeScript, MIT licence. The only one that writes programs and custom exercises. Its set reader guesses pounds or kilos from how heavy the numbers look. Do not copy that guess.</p><p>Also useful: <code>garmin-boostcamp-sync</code> for its field notes and <code>boostcamp-exporter</code> for getting the file.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>2. Three ways to connect, and the one to choose</h2><p>The key question: when Boostcamp changes something, what stops working in your app?</p></div>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1200 330" role="img" aria-label="Option A puts Boostcamp in the path of every screen. Option B syncs in the background with stored tokens. Option C, recommended, reads a file once; nothing in Pulse depends on Boostcamp.">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <text class="t" x="20" y="28">A. Live client</text><text class="t" x="420" y="28">B. Background sync</text><text class="t" x="820" y="28">C. File import (choose this)</text>
+        <path d="M395 12 V318 M795 12 V318" class="ar dash"/>
+        <rect class="box" x="20" y="50" width="150" height="56" rx="9"/><text x="95" y="83" text-anchor="middle">Pulse screens</text>
+        <rect class="bad" x="220" y="50" width="150" height="56" rx="9"/><text x="295" y="83" text-anchor="middle">Boostcamp API</text>
+        <path class="ar" d="M170 78 H220" marker-end="url(#a2)"/><text class="m" x="195" y="128" text-anchor="middle">every tap</text>
+        <rect class="box" x="420" y="50" width="150" height="56" rx="9"/><text x="495" y="83" text-anchor="middle">Pulse screens</text>
+        <rect class="acc" x="420" y="160" width="150" height="56" rx="9"/><text x="495" y="193" text-anchor="middle">Own database</text>
+        <rect class="wrn" x="620" y="160" width="150" height="56" rx="9"/><text x="695" y="193" text-anchor="middle">Boostcamp API</text>
+        <path class="ar" d="M495 106 V160" marker-end="url(#a2)"/><text class="m" x="505" y="138">reads, writes</text>
+        <path class="ar dash" d="M620 188 H570" marker-end="url(#a2)"/><text class="m" x="595" y="238" text-anchor="middle">pulls on a timer, with a stored token</text>
+        <rect class="box" x="820" y="50" width="150" height="56" rx="9"/><text x="895" y="83" text-anchor="middle">Pulse screens</text>
+        <rect class="acc" x="820" y="160" width="150" height="56" rx="9"/><text x="895" y="193" text-anchor="middle">Own database</text>
+        <rect class="ok" x="1030" y="160" width="150" height="56" rx="9"/><text x="1105" y="193" text-anchor="middle">history.json</text>
+        <rect class="box" x="1030" y="50" width="150" height="56" rx="9"/><text x="1105" y="75" text-anchor="middle">Your browser</text><text class="m" x="1105" y="94" text-anchor="middle">signed in by you</text>
+        <path class="ar" d="M895 106 V160" marker-end="url(#a2)"/><text class="m" x="905" y="138">reads, writes</text>
+        <path class="ar" d="M1105 106 V160" marker-end="url(#a2)"/><text class="m" x="1096" y="138" text-anchor="end">you save it</text>
+        <path class="ar" d="M1030 188 H970" marker-end="url(#a2)"/><text class="m" x="1000" y="238" text-anchor="middle">you pick the file</text>
+        <text x="20" y="276">API change: app stops</text><text class="m" x="20" y="300">Offline in the gym: nothing works</text>
+        <text x="420" y="276">API change: sync stops, app works</text><text class="m" x="420" y="300">Stores a password-like token; against the terms</text>
+        <text x="820" y="276">API change: only the next import fails</text><text class="m" x="820" y="300">No token on the phone, no calls from Pulse</text>
+      </svg>
+    </div>
+    <figcaption>In C there is no arrow from Pulse to Boostcamp. Everything you make in Pulse is saved in Pulse first and works with no internet.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <div class="col"><h3>Also use the allowed road: Health Connect</h3><p>Boostcamp officially saves finished workouts (date and duration) and bodyweight to Health Connect. It does <strong>not</strong> save sets, reps, weights or RPE there. So Health Connect can tell Pulse “you trained on Tuesday for 62 minutes”, but not what you lifted. Pulse already reads Health Connect, so this is a small addition.</p></div>
+    <div class="col"><h3>Leave a door open for B</h3><p>If Boostcamp gives you permission, B becomes one more class behind the same importer. Nothing else changes. Until then do not build it: no sign-in screen, no token store, no timer.</p></div>
+  </div>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1200 470" role="img" aria-label="Pulse keeps its health database unchanged and gains a separate training database. Boostcamp files pass through a reader, checks and a preview before reaching it. Health Connect exchanges sessions.">
+        <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <rect class="box" x="20" y="20" width="1160" height="76" rx="10"/><text class="t" x="40" y="50">Screens (Compose)</text><text class="m" x="40" y="74">New: Train home · Live workout · Plan builder · Exercise library · Progress   |   Changed: Today, Calendar, Trends, Widgets, Ask Pulse</text>
+        <rect class="box" x="20" y="150" width="330" height="90" rx="10"/><text class="t" x="40" y="184">HealthRepository</text><text class="m" x="40" y="208">as today: steps, sleep, heart, Google workouts</text>
+        <rect class="acc" x="430" y="150" width="400" height="90" rx="10"/><text class="t" x="450" y="184">TrainingRepository (new)</text><text class="m" x="450" y="208">plans, schedule, sessions, records</text><text class="m" x="450" y="227">+ pure rules: schedule, progression, records</text>
+        <rect class="box" x="20" y="310" width="330" height="100" rx="10"/><text class="t" x="40" y="344">pulse-health.db</text><text class="m" x="40" y="368">a copy of Google's data; safe to erase</text><text class="m" x="40" y="388">erased on layout change and sign-out</text>
+        <rect class="acc" x="430" y="310" width="400" height="100" rx="10"/><text class="t" x="450" y="344">pulse-training.db (new file)</text><text class="m" x="450" y="368">the only copy of what you made</text><text class="m" x="450" y="388">real migrations, export file, never auto-erased</text>
+        <rect class="ok" x="900" y="310" width="280" height="100" rx="10"/><text class="t" x="920" y="344">BoostcampFileImporter</text><text class="m" x="920" y="368">read → check → preview → save</text><text class="m" x="920" y="388">remove this class and Pulse still builds</text>
+        <rect class="box" x="900" y="150" width="280" height="90" rx="10"/><text class="t" x="920" y="184">Health Connect bridge</text><text class="m" x="920" y="208">writes finished sessions</text><text class="m" x="920" y="227">reads bodyweight, other apps' sessions</text>
+        <path class="ar" d="M185 96 V150" marker-end="url(#a3)"/><text class="m" x="195" y="128">reads</text>
+        <path class="ar" d="M630 96 V150" marker-end="url(#a3)"/><text class="m" x="640" y="128">reads, writes</text>
+        <path class="ar" d="M185 240 V310" marker-end="url(#a3)"/><text class="m" x="195" y="280">reads, syncs</text>
+        <path class="ar" d="M630 240 V310" marker-end="url(#a3)"/><text class="m" x="640" y="280">reads, writes</text>
+        <path class="ar" d="M900 360 H830" marker-end="url(#a3)"/><text class="m" x="865" y="436" text-anchor="middle">saves in one transaction</text>
+        <path class="ar" d="M830 195 H900" marker-end="url(#a3)" marker-start="url(#a3)"/>
+        <path class="ar dash" d="M350 195 H430" marker-end="url(#a3)"/><text class="m" x="390" y="142" text-anchor="middle">heart rate</text>
+      </svg>
+    </div>
+    <figcaption>Where the new parts go. Training reads heart rate and sleep from the health side, but neither database can break the other.</figcaption>
+  </figure>
+
+  <div class="note warn">
+    <h3>Four things in Pulse today that would lose or mix up training data</h3>
+    <ul>
+      <li><code>data/local/PulseDatabase.kt</code> uses <code>fallbackToDestructiveMigration(dropAllTables = true)</code>. Adding one table there would erase every logged set at the next layout change.</li>
+      <li><code>data/HealthRepositoryImpl.kt</code> calls <code>db.clearAllTables()</code>, and sign-out runs it. Your lifting log should outlive a Google sign-out, or at least ask.</li>
+      <li>The table name <code>workout</code> is taken, and <code>replaceWorkoutsFrom()</code> deletes its rows on each sync. Never put gym logs in it.</li>
+      <li>Phone backup is switched off for all files. That is right for privacy, but it means a lost phone loses your log, so an export file is required.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>3. The data model</h2><p>The one rule that prevents most bugs: <strong>the plan</strong>, <strong>the calendar</strong> and <strong>what really happened</strong> are three separate things.</p></div>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1200 480" role="img" aria-label="Plan tables hold a program with fixed revisions, weeks, days, slots and set targets. Calendar tables hold an enrolment and planned sessions. History tables hold sessions, exercises and sets with copied targets.">
+        <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <text class="t" x="20" y="26">PLAN: what you want to do</text><text class="t" x="430" y="26">CALENDAR: when</text><text class="t" x="820" y="26">HISTORY: what happened</text>
+        <rect class="box" x="20" y="46" width="330" height="54" rx="9"/><text x="36" y="70">program</text><text class="m" x="36" y="89">title, current revision, where it came from</text>
+        <rect class="acc" x="20" y="130" width="330" height="54" rx="9"/><text x="36" y="154">program_revision</text><text class="m" x="36" y="173">never edited after it is used; an edit makes a new one</text>
+        <rect class="box" x="20" y="214" width="330" height="54" rx="9"/><text x="36" y="238">program_week → program_day</text><text class="m" x="36" y="257">order, name, deload yes/no</text>
+        <rect class="box" x="20" y="298" width="330" height="54" rx="9"/><text x="36" y="322">day_slot</text><text class="m" x="36" y="341">exercise, order, superset group, rest, rule</text>
+        <rect class="box" x="20" y="382" width="330" height="72" rx="9"/><text x="36" y="406">set_target</text><text class="m" x="36" y="425">kind, reps min–max, AMRAP, time</text><text class="m" x="36" y="443">load: fixed, % of max, RPE, or none</text>
+        <path class="ar" d="M185 100 V130 M185 184 V214 M185 268 V298 M185 352 V382"/>
+        <rect class="box" x="430" y="130" width="310" height="54" rx="9"/><text x="446" y="154">enrollment</text><text class="m" x="446" y="173">start date, weekdays, paused, training maxes</text>
+        <rect class="acc" x="430" y="214" width="310" height="72" rx="9"/><text x="446" y="238">planned_session</text><text class="m" x="446" y="257">order in plan, date now, date first planned</text><text class="m" x="446" y="275">planned · done · skipped, pinned yes/no</text>
+        <path class="ar" d="M430 157 H350" marker-end="url(#a4)"/><text class="m" x="390" y="122" text-anchor="middle">follows</text>
+        <path class="ar" d="M585 184 V214"/>
+        <rect class="acc" x="820" y="130" width="360" height="72" rx="9"/><text x="836" y="154">session</text><text class="m" x="836" y="173">start, end, time zone, local day, source</text><text class="m" x="836" y="191">active · finished · discarded</text>
+        <rect class="box" x="820" y="236" width="360" height="54" rx="9"/><text x="836" y="260">session_exercise</text><text class="m" x="836" y="279">exercise + a copy of its name that day</text>
+        <rect class="box" x="820" y="324" width="360" height="90" rx="9"/><text x="836" y="348">set_log</text><text class="m" x="836" y="367">weight in grams + number and unit you typed</text><text class="m" x="836" y="385">reps, seconds, RPE, kind, done or skipped, when</text><text class="m" x="836" y="403">+ a copy of the target shown to you</text>
+        <path class="ar" d="M1000 202 V236 M1000 290 V324"/>
+        <path class="ar" d="M820 166 H780 V250 H740" marker-end="url(#a4)"/><text class="m" x="780" y="122" text-anchor="middle">may link to</text>
+        <rect class="box" x="430" y="350" width="310" height="54" rx="9"/><text x="446" y="374">exercise + exercise_alias</text><text class="m" x="446" y="393">built-in or custom; other names for matching</text>
+        <path class="ar" d="M350 325 H390 V368 H430" marker-end="url(#a4)"/>
+        <path class="ar" d="M820 263 H800 V377 H740" marker-end="url(#a4)"/>
+        <rect class="ok" x="430" y="424" width="310" height="46" rx="9"/><text x="446" y="452">import_batch + import_ref</text>
+      </svg>
+    </div>
+    <figcaption>History copies names and targets on purpose. Editing or deleting a plan can never change a workout you already did. Records, volume and estimated max are calculated from <code>set_log</code>, so they can always be rebuilt.</figcaption>
+  </figure>
+  <div class="grid3">
+    <div class="col"><h3>IDs</h3><p>Every row gets its own random ID made in Pulse. Boostcamp IDs live only in <code>import_ref</code> (source, kind, outside ID, Pulse ID, content hash). Importing the same file twice changes nothing.</p></div>
+    <div class="col"><h3>Weights</h3><p>Save whole grams, plus exactly what you typed (“225”, lb). Grams make the math safe; the typed value makes the screen show 225 and never 224.99.</p></div>
+    <div class="col"><h3>Dates</h3><p>Planned days are plain dates with no time. Sessions keep exact start and end times, the time zone and the local day. A workout past midnight stays on the day it began.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>4. How the three main features work</h2></div>
+
+  <h3>Plans: every edit asks “how far?”</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Your choice</th><th>What Pulse does</th><th>Past workouts</th><th>Other weeks</th></tr></thead>
+    <tbody>
+      <tr><td>Just today</td><td>Changes the open session only</td><td>Same</td><td>Same</td></tr>
+      <tr><td>From now on</td><td>New revision; only future planned sessions move to it</td><td>Same</td><td>Future ones change</td></tr>
+      <tr><td>The whole plan</td><td>New revision; used the next time you start the plan too</td><td>Same</td><td>Future ones change</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Schedule: order and date are separate</h3>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1120 260" role="img" aria-label="Missing Wednesday: moving one workout changes only that workout. Shifting the rest moves every later unpinned workout to the next training day, in order.">
+        <text class="m" x="250" y="26" text-anchor="middle">Mon</text><text class="m" x="390" y="26" text-anchor="middle">Wed</text><text class="m" x="530" y="26" text-anchor="middle">Thu</text><text class="m" x="670" y="26" text-anchor="middle">Fri</text><text class="m" x="810" y="26" text-anchor="middle">Mon</text><text class="m" x="950" y="26" text-anchor="middle">Wed</text>
+        <text x="20" y="68">First plan</text><text x="20" y="138">Move one day</text><text x="20" y="208">Shift the rest</text>
+        <rect class="ok" x="190" y="44" width="120" height="40" rx="8"/><text x="250" y="69" text-anchor="middle">A done</text>
+        <rect class="bad" x="330" y="44" width="120" height="40" rx="8"/><text x="390" y="69" text-anchor="middle">B missed</text>
+        <rect class="box" x="610" y="44" width="120" height="40" rx="8"/><text x="670" y="69" text-anchor="middle">C</text>
+        <rect class="box" x="750" y="44" width="120" height="40" rx="8"/><text x="810" y="69" text-anchor="middle">D</text>
+        <rect class="box" x="890" y="44" width="120" height="40" rx="8"/><text x="950" y="69" text-anchor="middle">E</text>
+        <rect class="ok" x="190" y="114" width="120" height="40" rx="8"/><text x="250" y="139" text-anchor="middle">A done</text>
+        <rect class="acc" x="470" y="114" width="120" height="40" rx="8"/><text x="530" y="139" text-anchor="middle">B</text>
+        <rect class="box" x="610" y="114" width="120" height="40" rx="8"/><text x="670" y="139" text-anchor="middle">C</text>
+        <rect class="box" x="750" y="114" width="120" height="40" rx="8"/><text x="810" y="139" text-anchor="middle">D</text>
+        <rect class="box" x="890" y="114" width="120" height="40" rx="8"/><text x="950" y="139" text-anchor="middle">E</text>
+        <rect class="ok" x="190" y="184" width="120" height="40" rx="8"/><text x="250" y="209" text-anchor="middle">A done</text>
+        <rect class="acc" x="610" y="184" width="120" height="40" rx="8"/><text x="670" y="209" text-anchor="middle">B</text>
+        <rect class="acc" x="750" y="184" width="120" height="40" rx="8"/><text x="810" y="209" text-anchor="middle">C</text>
+        <rect class="acc" x="890" y="184" width="120" height="40" rx="8"/><text x="950" y="209" text-anchor="middle">D</text><text class="m" x="1030" y="209">E → Fri</text>
+      </svg>
+    </div>
+    <figcaption>Training days here are Mon, Wed, Fri. Also offered: swap two, skip, pause for a holiday, restart from a week. Workouts you pin stay put. Done workouts never move. Every change can be undone, and nothing moves by itself.</figcaption>
+  </figure>
+
+  <h3>Live workout: saved at every tap</h3>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1120 270" role="img" aria-label="A session goes from planned or empty to active. Each finished set is saved and starts rest. If the app is killed, the active session is restored. It ends as finished or discarded.">
+        <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <rect class="box" x="20" y="90" width="170" height="70" rx="10"/><text class="t" x="105" y="122" text-anchor="middle">Planned</text><text class="m" x="105" y="143" text-anchor="middle">or empty workout</text>
+        <rect class="acc" x="320" y="90" width="190" height="70" rx="10"/><text class="t" x="415" y="122" text-anchor="middle">Active</text><text class="m" x="415" y="143" text-anchor="middle">only one at a time</text>
+        <rect class="box" x="650" y="90" width="170" height="70" rx="10"/><text class="t" x="735" y="122" text-anchor="middle">Resting</text><text class="m" x="735" y="143" text-anchor="middle">end time is saved</text>
+        <rect class="ok" x="930" y="40" width="170" height="60" rx="10"/><text class="t" x="1015" y="66" text-anchor="middle">Finished</text><text class="m" x="1015" y="86" text-anchor="middle">records, Health Connect</text>
+        <rect class="box" x="930" y="190" width="170" height="60" rx="10"/><text class="t" x="1015" y="216" text-anchor="middle">Discarded</text><text class="m" x="1015" y="236" text-anchor="middle">kept 30 days</text>
+        <rect class="wrn" x="320" y="206" width="190" height="50" rx="10"/><text x="415" y="236" text-anchor="middle">App killed</text>
+        <path class="ar" d="M190 125 H320" marker-end="url(#a5)"/><text class="m" x="255" y="116" text-anchor="middle">start</text>
+        <path class="ar" d="M510 110 H650" marker-end="url(#a5)"/><text class="m" x="580" y="101" text-anchor="middle">set done (saved)</text>
+        <path class="ar" d="M650 142 H510" marker-end="url(#a5)"/><text class="m" x="580" y="162" text-anchor="middle">time up or skip</text>
+        <path class="ar dash" d="M380 160 V206" marker-end="url(#a5)"/><path class="ar" d="M450 206 V160" marker-end="url(#a5)"/><text class="m" x="462" y="190">reopen</text>
+        <path class="ar" d="M415 90 V50 H930" marker-end="url(#a5)"/><text class="m" x="670" y="41" text-anchor="middle">finish</text>
+        <path class="ar" d="M510 152 H530 V220 H930" marker-end="url(#a5)"/><text class="m" x="720" y="211" text-anchor="middle">discard (asks first)</text>
+      </svg>
+    </div>
+    <figcaption>The rest timer is a saved end time, not a counter in memory, so it survives a killed app. A foreground service of type <code>health</code> keeps the notification alive. It needs <code>FOREGROUND_SERVICE_HEALTH</code> plus a permission Pulse already asks for, such as activity recognition.</figcaption>
+  </figure>
+
+  <div class="grid3">
+    <div class="col"><h3>One set row</h3><p>Last time · target · weight · reps · RPE · tick. Kinds: warm-up, working, drop, AMRAP, failure, timed. RPE 6 to 10 in half steps, optional, with “reps left” shown beside it.</p></div>
+    <div class="col"><h3>Next weight (simple rules)</h3><p>Fixed step; double progression (fill the rep range, then add weight); percent of training max; RPE based. Each is a plain function with tests, and the screen says <em>why</em> it suggests a weight. You can always change it.</p></div>
+    <div class="col"><h3>Progress</h3><p>Estimated max with Epley: weight × (1 + reps ÷ 30), only for 1 to 12 reps. Best weight, best reps at a weight, weekly sets per muscle, volume. Warm-ups and skipped sets never count.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>5. Build order</h2><p>Each phase ends with something you can use. Logging comes before the builder because plans are only worth making once you can follow them. Sizes are my estimate: S is about 1–2 focused days, M 3–5, L 6–10.</p></div>
+  <div>
+    <div class="phase"><div><span class="n">Phase 0</span><span><span class="pill ok">S</span></span></div><div><h3>Safe storage</h3><ul><li>New <code>training/</code> package, <code>TrainingDatabase</code> in its own file, <code>exportSchema = true</code>, no destructive fallback</li><li>Wire it in <code>PulseGraph.kt</code></li><li>Export and restore one JSON file you choose; sign-out asks about training data separately</li></ul></div><div><h3>Done when</h3><p class="done">A migration test passes. Export, uninstall, install, restore gives the same rows. A Google sign-out leaves training data alone.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 1</span><span><span class="pill ok">S–M</span></span></div><div><h3>Exercises</h3><ul><li>Start from <code>free-exercise-db</code>: 876 exercises, Unlicense (check the pictures' origin before using them)</li><li>Search, filter, favourites; custom exercises with muscles, equipment, tracking type and rest</li><li>Archive, never delete, once used</li></ul></div><div><h3>Done when</h3><p class="done">You can add “Cable row, close grip”, find it by typing “row”, and rename it without changing past logs.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 2</span><span><span class="pill warn">L</span></span></div><div><h3>Live logging</h3><ul><li>Empty workout, sets, supersets, swap exercise, notes</li><li>Rest timer, notification, plate calculator, “last time” column</li><li>Live heart rate from <code>direct/LiveHeart.kt</code> during the session</li></ul></div><div><h3>Done when</h3><p class="done">Kill the app mid-set and mid-rest, restart the phone, use it in flight mode: no set is lost and the timer is right.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 3</span><span><span class="pill warn">L</span></span></div><div><h3>Plan builder</h3><ul><li>Weeks, days, exercises, set targets; copy week, copy day, drag to reorder</li><li>Deload week, progression rule per exercise</li><li>Revisions and the “how far?” question</li></ul></div><div><h3>Done when</h3><p class="done">Build a 12-week, 4-day plan in under ten minutes. Edit week 5 while in week 4: weeks 1–4 history is byte-for-byte the same.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 4</span><span><span class="pill warn">M</span></span></div><div><h3>Schedule</h3><ul><li>Planned workouts in <code>CalendarScreen.kt</code> and on Today</li><li>Move, shift, swap, skip, pause, undo</li><li>Workout reminder through the present <code>reminders/</code> code</li></ul></div><div><h3>Done when</h3><p class="done">Schedule rules are pure functions with tests for pins, pauses, month ends, clock changes and a missed week.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 5</span><span><span class="pill warn">M</span></span></div><div><h3>Progress</h3><ul><li>Exercise page, records, muscle sets, week streak</li><li>Next-weight suggestions</li><li>New cards in Trends; “How is my bench?” in Ask Pulse</li></ul></div><div><h3>Done when</h3><p class="done">Editing an old set updates its records. Each suggestion can show its reason in one sentence.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 6</span><span><span class="pill warn">M</span></span></div><div><h3>Boostcamp import</h3><ul><li>Pick a file → check → match exercises → preview → save in one go</li><li>One known set to prove kg or lb</li><li>Undo a whole import; keep the original file for a re-read</li></ul></div><div><h3>Done when</h3><p class="done">Counts match: workouts, sets and total weight in the file equal those in Pulse, with every skipped row listed. A second import adds zero rows.</p></div></div>
+    <div class="phase"><div><span class="n">Phase 7</span><span><span class="pill ok">S–M</span></span></div><div><h3>Health Connect and extras</h3><ul><li>Write finished sessions; read bodyweight</li><li>Join duplicates from Google, Boostcamp and Pulse</li><li>Next-workout widget</li></ul></div><div><h3>Done when</h3><p class="done">One gym visit shows as one workout, wherever it was recorded. The permission screen text says Pulse now also writes.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>6. Getting your history out, once</h2><p>No official export exists yet; search results show Boostcamp saying on Google Play that it is wanted. If support cannot help, this is the manual way other users take.</p></div>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 1200 130" role="img" aria-label="Five steps: open the history page, open developer tools, copy the history response, save it as a file, import it in Pulse with a preview.">
+        <defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="hd" d="M0 0 10 5 0 10z"/></marker></defs>
+        <rect class="box" x="10" y="25" width="200" height="80" rx="10"/><text class="t" x="110" y="58" text-anchor="middle">Open your history</text><text class="m" x="110" y="82" text-anchor="middle">boostcamp.app/history</text>
+        <rect class="box" x="255" y="25" width="200" height="80" rx="10"/><text class="t" x="355" y="58" text-anchor="middle">Press F12, reload</text><text class="m" x="355" y="82" text-anchor="middle">Network → “history”</text>
+        <rect class="box" x="500" y="25" width="200" height="80" rx="10"/><text class="t" x="600" y="58" text-anchor="middle">Copy the Response</text><text class="m" x="600" y="82" text-anchor="middle">never copy Headers</text>
+        <rect class="box" x="745" y="25" width="200" height="80" rx="10"/><text class="t" x="845" y="58" text-anchor="middle">Save history.json</text><text class="m" x="845" y="82" text-anchor="middle">outside this project</text>
+        <rect class="acc" x="990" y="25" width="200" height="80" rx="10"/><text class="t" x="1090" y="58" text-anchor="middle">Import in Pulse</text><text class="m" x="1090" y="82" text-anchor="middle">check the preview</text>
+        <path class="ar" d="M210 65 H255 M455 65 H500 M700 65 H745 M945 65 H990" marker-end="url(#a6)"/>
+      </svg>
+    </div>
+    <figcaption>The Headers tab holds your token. Do not save it, share it or paste it into a chat. Do not use “Copy as cURL” or a HAR file: both contain the token. Programs you wrote can be rebuilt by hand in Phase 3, which is safer than guessing their hidden format.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head"><h2>7. Risks and traps</h2></div>
+  <h3>Data traps: most of the real bugs are here</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Trap</th><th>What happens</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>Planned or lifted?</td><td><code>value</code>/<code>amount</code> are the plan; <code>archived_weight</code>/<code>archived_reps</code> are what you did.</td><td>Use the archived pair. If it is missing, mark the set “unsure”; do not quietly use the plan.</td></tr>
+      <tr><td><strong>Kilos or pounds?</strong></td><td>One report on a kg account says <code>archived_weight</code> is always pounds. Another project reads it in each set's <code>weight_unit</code>. If you choose wrong, every weight is off by 2.2 times.</td><td>Ask for one set you remember. Show “100 kg or 45.4 kg?” with real rows before saving. Never guess from size.</td></tr>
+      <tr><td>AMRAP</td><td><code>amount</code> can be <code>"3+"</code>, which is text.</td><td>Read it as target 3, AMRAP yes. Take real reps from archived.</td></tr>
+      <tr><td>Supersets</td><td>The outer record has no sets; the exercises are in <code>supersets[]</code>.</td><td>Unpack and keep a group ID. If not, whole exercises vanish.</td></tr>
+      <tr><td>Timed sets</td><td>With <code>target_type: "time"</code>, the reps field holds seconds.</td><td>Choose the column by type. A 60-second plank is not 60 reps.</td></tr>
+      <tr><td>Empty, zero, skipped</td><td>Zero can mean bodyweight, not entered or skipped. RPE 0 means none.</td><td>Use <code>null</code> for unknown. Keep <code>skipped</code>. Bodyweight and assisted lifts get their own load type.</td></tr>
+      <tr><td>Numbers as text</td><td>Fields switch between text and numbers.</td><td>Read both. Unknown fields are ignored; missing key fields stop that row and are listed.</td></tr>
+      <tr><td>Muscles</td><td><code>muscles_list</code> appears in three shapes.</td><td>Use the matched Pulse exercise's muscles instead.</td></tr>
+      <tr><td>Dates</td><td>Grouping uses <code>timezone_offset</code> in minutes east of UTC (−300 is New York in winter). JavaScript's function has the opposite sign. One fixed offset also ignores clock changes. <code>finished_at</code> has no zone and start time may be missing.</td><td>Trust the date key for the day. Treat the time as local and unsure. Do not invent a start time.</td></tr>
+      <tr><td>Week numbers</td><td>One sample shows <code>week: 0</code>, so counting may start at zero.</td><td>Save the raw number; show it only after you check one workout.</td></tr>
+      <tr><td>Exercise names</td><td>“Bench Press” may be barbell or dumbbell; two records can share a name.</td><td>Match outside ID, then name + equipment, then ask you. Save the answer as an alias. Never join by fuzzy match alone.</td></tr>
+      <tr><td>Large file</td><td>231 workouts were about 3.4 MB, with no pages.</td><td>Read as a stream off the main thread, in one transaction, with a size limit.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Tokens and limits: only if Boostcamp lets you build option B</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Risk</th><th>Fact</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Token runs out</td><td>The ID token lasts one hour.</td><td>Renew 60 seconds early. On 401 <strong>or</strong> 403, renew once and retry once. Then stop and show “Connect again”.</td></tr>
+      <tr><td>Two renewals at once</td><td>The Python library has no lock.</td><td>One <code>Mutex</code>, as Pulse already uses for Google.</td></tr>
+      <tr><td>Refresh token changes</td><td>Firebase may send a new one; the MCP tool keeps it only in memory.</td><td>Save the new one before using the new ID token.</td></tr>
+      <tr><td>Refresh token dies</td><td>Password or email change, account disabled or deleted.</td><td>Sign in again. Never retry in a loop.</td></tr>
+      <tr><td>Google sign-in account</td><td>It has no password, so the password login fails. Setting a password can sign out your other devices.</td><td>Do not set a password just for this.</td></tr>
+      <tr><td>Storage</td><td>The refresh token is like a password.</td><td>Android Keystore encryption, no backup, never in logs, erased on disconnect. Never store the password.</td></tr>
+      <tr><td>Rate limits</td><td>No limit is published. One project signs in every 15 minutes; do not copy that.</td><td>Manual button, at most one pull in 6 hours, one request at a time. On 429 follow <code>Retry-After</code>, else wait 1, 2, 4 hours. Stop after three failures.</td></tr>
+      <tr><td>Hidden API changes</td><td>Paths differ between projects already.</td><td>Keep saved sample replies as tests. If the shape fails, save nothing.</td></tr>
+      <tr><td>Writing back</td><td>Update sends the whole program, so it can overwrite a change made in their app. Custom exercises cannot be deleted.</td><td>Do not write back at all.</td></tr>
+      <tr><td>Disguise</td><td>The wrappers pretend to be a Chrome browser on Boostcamp's site.</td><td>Do not do this, nor dodge a block. A block means stop.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>App traps</h3>
+  <div class="grid3">
+    <div class="col"><h3>Same workout three times</h3><p>A gym visit can arrive from Pulse, Boostcamp through Health Connect, and Google. Give each written record a fixed <code>clientRecordId</code>, ignore records Pulse wrote, and join sessions that overlap by most of their time. Ask when unsure.</p></div>
+    <div class="col"><h3>Health Connect permission</h3><p>Pulse says “read-only” in its manifest notes and permission screen. Writing sessions changes that promise, so update the text. Also, <code>LocalLane.turnOff()</code> revokes <em>all</em> permissions at sign-out, the new ones included.</p></div>
+    <div class="col"><h3>Rest alarm late</h3><p>Exact alarms may be refused on Android 14 and newer. Let the foreground service do the timing from the saved end time, and use an exact alarm only when allowed. Test with the screen off for five minutes.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>8. Decisions for you</h2></div>
+  <ol>
+    <li><strong>Will Pulse stay private?</strong> If you may publish it, skip the Boostcamp import, or get their written permission first.</li>
+    <li><strong>Email support before Phase 6?</strong> I suggest yes. Phases 0 to 5 need nothing from Boostcamp, so there is no waiting.</li>
+    <li><strong>How many tabs?</strong> Pulse has five already. I suggest a Train card on Today that opens a Train screen, with no sixth tab.</li>
+  </ol>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Sources and what I could not check</h2></div>
+  <p>Not checked: any path above against the live service, your own account's data shape, the inside of <code>weeks</code> and <code>variations</code>, and the Google Play reply about export (seen in search results only; the page would not load). Boostcamp's terms page shows no date.</p>
+  <ul class="src">
+    <li><a href="https://www.boostcamp.app/terms-conditions">Boostcamp terms and conditions</a></li>
+    <li><a href="https://www.boostcamp.app/features">Boostcamp features</a> (updated October 2026)</li>
+    <li><a href="https://www.boostcamp.app/features/apple-health">Boostcamp and Health Connect</a></li>
+    <li><a href="https://github.com/Alex-Keyes/boostcamp-api">Alex-Keyes/boostcamp-api</a></li>
+    <li><a href="https://github.com/Alex-Keyes/boostcamp-mcp">Alex-Keyes/boostcamp-mcp</a></li>
+    <li><a href="https://github.com/Alex-Keyes/boostcamp-mcp/issues/8">boostcamp-mcp issue 8: planned vs lifted</a></li>
+    <li><a href="https://github.com/Alex-Keyes/boostcamp-mcp/pull/7">boostcamp-mcp pull request 7: history fix</a></li>
+    <li><a href="https://github.com/Aodaruma/n8n-nodes-boostcamp">Aodaruma/n8n-nodes-boostcamp</a></li>
+    <li><a href="https://github.com/umizoom/garmin-boostcamp-sync">umizoom/garmin-boostcamp-sync</a></li>
+    <li><a href="https://github.com/jrmccannon/boostcamp-export">jrmccannon/boostcamp-export</a></li>
+    <li><a href="https://github.com/murtbang/cadence-boostcamp-sync">murtbang/cadence-boostcamp-sync</a></li>
+    <li><a href="https://github.com/sakibchy/boostcamp-exporter">sakibchy/boostcamp-exporter</a></li>
+    <li><a href="https://github.com/blaekhossa/boostc_2_dataframe">blaekhossa/boostc_2_dataframe</a></li>
+    <li><a href="https://firebase.google.com/docs/auth/admin/manage-sessions">Firebase: token lifetime</a></li>
+    <li><a href="https://developer.android.com/health-and-fitness/health-connect/features/training-plans">Health Connect training plans</a></li>
+    <li><a href="https://developer.android.com/develop/background-work/services/fgs/service-types">Android foreground service types</a></li>
+    <li><a href="https://github.com/yuhonas/free-exercise-db">yuhonas/free-exercise-db</a></li>
+  </ul>
+</section>
+</main>

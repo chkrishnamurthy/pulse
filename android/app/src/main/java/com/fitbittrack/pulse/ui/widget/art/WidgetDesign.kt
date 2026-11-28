@@ -29,7 +29,7 @@ enum class WidgetLook(val label: String) {
 enum class RefreshSpot { TopEnd, BottomEnd, BottomStart }
 
 /** The page a tap on the widget opens. */
-enum class WidgetTap(val label: String) { Today("Today"), Goals("Calendar"), Sleep("Sleep"), Heart("Heart"), Trends("Trends"), Ask("Ask Pulse") }
+enum class WidgetTap(val label: String) { Today("Today"), Goals("Calendar"), Sleep("Sleep"), Heart("Heart"), Trends("Trends"), Ask("Ask Pulse"), Train("Train") }
 
 /**
  * Every widget drawing. The name is saved on the phone, so never rename an entry.
